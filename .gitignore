@@ -1,0 +1,9 @@
+__pycache__
+figs/
+analysis/
+utils/data/codebase/
+utils/data/assets/datasets/m3/
+utils/data/assets/datasets/m4/
+*.ipynb
+.ipynb_checkpoints/
+.DS_Store

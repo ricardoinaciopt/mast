@@ -1,0 +1,14 @@
+datasetsforecast==0.0.8
+imbalanced_learn==0.12.3
+lightgbm==4.3.0
+matplotlib==3.8.4
+mlforecast==0.13.0
+numpy==1.26.4
+optuna==3.6.1
+pandas==2.2.2
+scikit_learn==1.4.2
+shap==0.45.1
+statsforecast==1.7.5
+tsfeatures==0.4.5
+utilsforecast==0.1.10
+window_ops==0.0.15
