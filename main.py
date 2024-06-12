@@ -33,8 +33,13 @@ if __name__ == "__main__":
 
     errors, scores = run_scripts(scripts, resamplers)
 
-    save_tables = importlib.import_module("json2latex")
-    save_tables.save_latex_table(errors, "errors_to_latex_table")
-    save_tables.save_latex_table(scores, "save_scores_table")
+    try:
+        save_tables = importlib.import_module("json2latex")
+        save_tables.save_latex_table(errors, "errors_to_latex_table")
+        save_tables.save_latex_table(scores, "save_scores_table")
+    except ImportError as e:
+        print(f"Error importing json2latex: {e}")
+    except Exception as e:
+        print(f"Error saving LaTeX tables: {e}")
 
     sys.exit(0)

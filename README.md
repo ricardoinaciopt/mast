@@ -6,7 +6,7 @@ Repository complementary to the paper `MAST`: Meta-learning and data Augmentatio
 
 To use the classes and scripts provided in this repository, follow the instructions outlined in the documentation and code comments. Make sure to install the required dependencies listed in the `requirements.txt` file before running any scripts.
 
-To initiate experiments and evaluate different models and resampling techniques, use `main.py`. Specify the scripts and resamplers to use within `main.py` before execution..
+To initiate experiments and evaluate different models and resampling techniques, use `main.py`. Specify the scripts and resamplers to use within `main.py` before execution.
 
 ## Classes Overview
 
