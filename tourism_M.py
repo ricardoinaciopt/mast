@@ -35,7 +35,7 @@ def main(resampler):
     forecastingModel = ForecastingModel(
         frequency=dataset.frequency,
         horizon=horizon,
-        lags=[(i + 1) for i in range(12)],
+        lags=[(i + 1) for i in range(24)],
         train=dev_set,
     )
 
@@ -46,24 +46,22 @@ def main(resampler):
     mast_dev = MAST(
         test_set=valid,
         model_predictions=[forecastingModel.prediction, baseline_model.prediction],
-        models=["SeasonalNaive", "ForecastingModel"],
+        models=["SeasonalNaive", "LGBM"],
         seasonality=dataset.seasonality,
     )
     mast_dev.evaluate_forecasts(train_set=dev_set)
     error_summary1 = mast_dev.summary.to_dict(orient="records")
 
-    mast_dev.get_large_errors(0.95, "ForecastingModel", "smape")
+    mast_dev.get_large_errors(0.95, "LGBM", "smape")
     mast_dev.extract_features(train_set=dev_set, frequency=12)
 
     # Fit the meta model
-    metamodel1 = MetaModel(
-        model="ForecastingModel", train_set=mast_dev.features_errors.copy()
-    )
+    metamodel1 = MetaModel(model="LGBM", train_set=mast_dev.features_errors.copy())
     metamodel1.fit_model()
 
     # Fit the resampled meta model
     metamodel2 = MetaModel(
-        model="ForecastingModel",
+        model="LGBM",
         train_set=mast_dev.features_errors.copy(),
         resampler=resampler,
     )
@@ -81,7 +79,7 @@ def main(resampler):
     forecastingModel2 = ForecastingModel(
         frequency=dataset.frequency,
         horizon=horizon,
-        lags=[(i + 1) for i in range(12)],
+        lags=[(i + 1) for i in range(24)],
         train=train,
     )
 
@@ -92,18 +90,18 @@ def main(resampler):
     mast = MAST(
         test_set=test,
         model_predictions=[forecastingModel2.prediction, baseline_model2.prediction],
-        models=["SeasonalNaive", "ForecastingModel"],
+        models=["SeasonalNaive", "LGBM"],
         seasonality=dataset.seasonality,
     )
     mast.evaluate_forecasts(train_set=train)
     error_summary2 = mast.summary.to_dict(orient="records")
 
-    mast.get_large_errors(0.95, "ForecastingModel", "smape")
+    mast.get_large_errors(0.95, "LGBM", "smape")
     mast.extract_features(train_set=train, frequency=12)
 
     full_features_df = mast.features_errors.copy()
     full_features_df.set_index("unique_id", inplace=True)
-    full_features_df.drop(columns=["metric", "ForecastingModel"], inplace=True)
+    full_features_df.drop(columns=["metric", "LGBM"], inplace=True)
     full_features_df.fillna(0, inplace=True)
     full_features_df.head()
     X = full_features_df.drop(["large_error"], axis=1)
@@ -138,7 +136,7 @@ def main(resampler):
     explainer = shap.TreeExplainer(metamodel2.classifier)
     shap_values = explainer(X)
     fig = plt.figure()
-    shap.summary_plot(shap_values, X, max_display=10, show=False)
+    shap.summary_plot(shap_values, X, max_display=5, show=False)
     shap_file = "figs/shap_" + str(resampler) + "_Tourism.pdf"
     plt.savefig(shap_file, dpi=1000, bbox_inches="tight")
     plt.close(fig)

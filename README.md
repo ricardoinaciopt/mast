@@ -42,7 +42,7 @@ Methods:
 - `extract_features(train_set, frequency)`: Extracts features from the training set.
 
 ### ForecastingModel
-Class for training and forecasting using LightGBM model with cross-validation.
+Class for training, tuning and forecasting using LightGBM model.
 
 Attributes:
 - `frequency` (str): The frequency of the time series data.
@@ -54,6 +54,7 @@ Attributes:
 - `execution_time` (float): Time taken for training in minutes.
 
 Methods:
+- `train()`: Trains the LightGBM model and performs hyperparameter tuning.
 - `forecast()`: Generates forecast using the trained model.
 - `create_lag_transforms(lag_transforms, rolling_mean_value)`: Creates lag transforms dictionary.
 

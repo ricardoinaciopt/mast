@@ -1,11 +1,7 @@
 import lightgbm as lgb
 from utils.Holdout import Holdout
 from sklearn.model_selection import GridSearchCV
-from imblearn.over_sampling import (
-    RandomOverSampler,
-    SMOTE,
-    ADASYN,
-)
+from imblearn.over_sampling import SMOTE, ADASYN
 
 
 class MetaModel:
@@ -41,7 +37,6 @@ class MetaModel:
         self.X = None
         self.y = None
         self.resamplers = {
-            "RandomOverSampler": RandomOverSampler(),
             "SMOTE": SMOTE(),
             "ADASYN": ADASYN(),
         }
@@ -82,22 +77,20 @@ class MetaModel:
             "objective": "binary",
             "boosting_type": "gbdt",
             "force_col_wise": True,
+            "learning_rate": 0.05,
+            "max_depth": 5,
             "verbosity": -1,
         }
         # grid for tuning
         param_grid = {
-            "num_leaves": [2, 32, 64, 128],
-            "max_depth": [5, 10, 15],
-            "learning_rate": [0.01, 0.02, 0.05],
-            "n_estimators": [50, 100, 200],
+            "num_leaves": [32, 64, 128],
+            "n_estimators": [50, 100, 150],
         }
 
         lgbm = lgb.LGBMClassifier(**lgbm_params)
 
-        cv = Holdout(n=self.X.shape[0])
-        grid_search = GridSearchCV(
-            estimator=lgbm, param_grid=param_grid, cv=cv, n_jobs=-1
-        )
+        # cv = Holdout(n=self.X.shape[0])
+        grid_search = GridSearchCV(estimator=lgbm, param_grid=param_grid, n_jobs=-1)
         grid_search.fit(self.X, self.y)
 
         self.classifier = grid_search.best_estimator_

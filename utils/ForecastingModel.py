@@ -8,7 +8,7 @@ import optuna
 
 class ForecastingModel:
     """
-    Class for training and forecasting using LightGBM model hyperparameter tuning.
+    Class for training and forecasting using LightGBM model with hyperparameter tuning.
     Model is lightgbm, and tuning is done using AutoModel from Nixtla and optuna.
 
     Attributes:
@@ -49,7 +49,7 @@ class ForecastingModel:
 
     def train(self):
         """
-        Trains the LightGBM model using cross-validation.
+        Trains the LightGBM model and performs hyperparameter tuning.
         """
 
         # fixed parameters
@@ -66,10 +66,10 @@ class ForecastingModel:
                 "learning_rate": trial.suggest_categorical(
                     "learning_rate", [0.01, 0.02, 0.05]
                 ),
-                "num_leaves": trial.suggest_categorical("num_leaves", [2, 32, 64, 128]),
-                "max_depth": trial.suggest_categorical("max_depth", [5, 10, 15]),
+                "num_leaves": trial.suggest_categorical("num_leaves", [32, 64, 128]),
+                "max_depth": trial.suggest_categorical("max_depth", [5, 7, 10]),
                 "n_estimators": trial.suggest_categorical(
-                    "n_estimators", [50, 100, 200]
+                    "n_estimators", [50, 100, 150]
                 ),
             }
 
@@ -81,12 +81,16 @@ class ForecastingModel:
             }
 
         tuned_lgb = AutoModel(
-            model=lgb.LGBMRegressor(**lgbm_params), config=my_lgb_config
+            # scikit-learn compatible regressor
+            model=lgb.LGBMRegressor(**lgbm_params),
+            config=my_lgb_config,
         )
 
+        optuna.logging.set_verbosity(optuna.logging.ERROR)
         init = time()
         self.lgbm = AutoMLForecast(
-            models={"ForecastingModel": tuned_lgb},
+            # Hyperparameter optimization helper
+            models={"LGBM": tuned_lgb},
             freq=self.frequency,
             season_length=12,
             init_config=init_config,
@@ -99,9 +103,7 @@ class ForecastingModel:
         Generates forecast using the trained model.
         """
         self.prediction = self.lgbm.predict(self.horizon)
-        self.prediction.rename(
-            columns={"LGBMRegressor": "ForecastingModel"}, inplace=True
-        )
+        self.prediction.rename(columns={"LGBMRegressor": "LGBM"}, inplace=True)
 
     def create_lag_transforms(self, lag_transforms, rolling_mean_value):
         """

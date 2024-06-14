@@ -14,7 +14,7 @@ def errors_to_latex_table(data):
     table = "\\begin{table}[htbp]\n\\centering\n"
     table += "\\begin{tabular}{|l|c|c|}\n"
     table += "\\hline\n"
-    table += "Dataset & SeasonalNaive & ForecastingModel \\\\\n"
+    table += "Dataset & SeasonalNaive & LGBM \\\\\n"
     table += "\\hline\n"
 
     for key, value in data.items():
@@ -24,7 +24,7 @@ def errors_to_latex_table(data):
                 if inner_dict["metric"] == "smape":
                     lines.append(
                         "{:.4f} & {:.4f} \\\\\n".format(
-                            inner_dict["SeasonalNaive"], inner_dict["ForecastingModel"]
+                            inner_dict["SeasonalNaive"], inner_dict["LGBM"]
                         )
                     )
         if lines:
