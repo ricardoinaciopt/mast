@@ -76,21 +76,25 @@ class MetaModel:
             "random_seed": 42,
             "objective": "binary",
             "boosting_type": "gbdt",
-            "force_col_wise": True,
-            "learning_rate": 0.05,
-            "max_depth": 5,
             "verbosity": -1,
         }
         # grid for tuning
         param_grid = {
-            "num_leaves": [32, 64, 128],
+            "learning_rate": [0.02, 0.03, 0.04, 0.05],
+            "num_leaves": [8, 16, 32, 64],
+            "max_depth": [5, 10, 15],
             "n_estimators": [50, 100, 150],
         }
 
         lgbm = lgb.LGBMClassifier(**lgbm_params)
 
         # cv = Holdout(n=self.X.shape[0])
-        grid_search = GridSearchCV(estimator=lgbm, param_grid=param_grid, n_jobs=-1)
+        grid_search = GridSearchCV(
+            estimator=lgbm,
+            param_grid=param_grid,
+            scoring="roc_auc",
+            n_jobs=-1,
+        )
         grid_search.fit(self.X, self.y)
 
         self.classifier = grid_search.best_estimator_

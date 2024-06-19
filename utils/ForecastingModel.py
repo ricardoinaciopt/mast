@@ -56,7 +56,6 @@ class ForecastingModel:
         lgbm_params = {
             "random_seed": 42,
             "boosting_type": "gbdt",
-            "force_col_wise": True,
             "verbosity": -1,
         }
 
@@ -64,10 +63,12 @@ class ForecastingModel:
         def my_lgb_config(trial: optuna.Trial):
             return {
                 "learning_rate": trial.suggest_categorical(
-                    "learning_rate", [0.01, 0.02, 0.05]
+                    "learning_rate", [0.02, 0.03, 0.04, 0.05]
                 ),
-                "num_leaves": trial.suggest_categorical("num_leaves", [32, 64, 128]),
-                "max_depth": trial.suggest_categorical("max_depth", [5, 7, 10]),
+                "num_leaves": trial.suggest_categorical(
+                    "num_leaves", [4, 8, 16, 32, 64]
+                ),
+                "max_depth": trial.suggest_categorical("max_depth", [5, 10, 15]),
                 "n_estimators": trial.suggest_categorical(
                     "n_estimators", [50, 100, 150]
                 ),

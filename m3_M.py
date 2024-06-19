@@ -11,7 +11,7 @@ from utils.MAST import MAST
 from utils.MetaModel import MetaModel
 
 
-def main(resampler):
+def main(resampler, err_percentile):
 
     dataset = PrepareDataset(dataset="M3", group="Monthly")
     dataset.load_dataset()
@@ -52,7 +52,7 @@ def main(resampler):
     mast_dev.evaluate_forecasts(train_set=dev_set)
     error_summary1 = mast_dev.summary.to_dict(orient="records")
 
-    mast_dev.get_large_errors(0.95, "LGBM", "smape")
+    mast_dev.get_large_errors(err_percentile, "LGBM", "smape")
     mast_dev.extract_features(train_set=dev_set, frequency=12)
 
     # Fit the meta model
@@ -96,7 +96,7 @@ def main(resampler):
     mast.evaluate_forecasts(train_set=train)
     error_summary2 = mast.summary.to_dict(orient="records")
 
-    mast.get_large_errors(0.95, "LGBM", "smape")
+    mast.get_large_errors(err_percentile, "LGBM", "smape")
     mast.extract_features(train_set=train, frequency=12)
 
     full_features_df = mast.features_errors.copy()
@@ -124,7 +124,8 @@ def main(resampler):
     lgb.plot_importance(
         metamodel2.classifier,
         ax=fig.gca(),
-        max_num_features=10,
+        max_num_features=5,
+        height=0.5,
         grid=False,
         dpi=1000,
     )
