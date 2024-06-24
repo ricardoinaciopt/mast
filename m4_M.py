@@ -11,7 +11,7 @@ from utils.MAST import MAST
 from utils.MetaModel import MetaModel
 
 
-def main(resampler, err_percentile=0.9):
+def main(resampler, err_percentile=0.9, plot_results=False):
 
     dataset = PrepareDataset(dataset="M4", group="Monthly")
     dataset.load_dataset()
@@ -116,36 +116,37 @@ def main(resampler, err_percentile=0.9):
     roc_auc_final_2 = roc_auc_score(y, mm2_eval)
     print("AUC score for LGBM (Meta Model 2):", roc_auc_final_2)
 
-    if not os.path.exists("figs"):
-        os.makedirs("figs")
+    if plot_results:
+        if not os.path.exists("figs"):
+            os.makedirs("figs")
 
-    # Feature Importances (augmented metamodel)
-    fig = plt.figure(figsize=(10, 7))
-    lgb.plot_importance(
-        metamodel2.classifier,
-        ax=fig.gca(),
-        max_num_features=5,
-        height=0.5,
-        grid=False,
-        dpi=1000,
-    )
-    importance_file = "figs/features_importances_" + str(resampler) + "_M4.pdf"
-    plt.savefig(importance_file, dpi=1000, bbox_inches="tight")
-    plt.close(fig)
+        # Feature Importances (augmented metamodel)
+        fig = plt.figure(figsize=(10, 7))
+        lgb.plot_importance(
+            metamodel2.classifier,
+            ax=fig.gca(),
+            max_num_features=5,
+            height=0.5,
+            grid=False,
+            dpi=1000,
+        )
+        importance_file = "figs/features_importances_" + str(resampler) + "_M4.pdf"
+        plt.savefig(importance_file, dpi=1000, bbox_inches="tight")
+        plt.close(fig)
 
-    # SHAP values (augmented metamodel)
-    explainer = shap.TreeExplainer(metamodel2.classifier)
-    shap_values = explainer(X)
-    fig = plt.figure()
-    shap.summary_plot(shap_values, X, max_display=5, show=False)
-    shap_file = "figs/shap_" + str(resampler) + "_M4.pdf"
-    plt.savefig(shap_file, dpi=1000, bbox_inches="tight")
-    plt.close(fig)
+        # SHAP values (augmented metamodel)
+        explainer = shap.TreeExplainer(metamodel2.classifier)
+        shap_values = explainer(X)
+        fig = plt.figure()
+        shap.summary_plot(shap_values, X, max_display=5, show=False)
+        shap_file = "figs/shap_" + str(resampler) + "_M4.pdf"
+        plt.savefig(shap_file, dpi=1000, bbox_inches="tight")
+        plt.close(fig)
 
-    del shap_values
-    del explainer
-    del fig
-    gc.collect()
+        del shap_values
+        del explainer
+        del fig
+        gc.collect()
 
     return (
         error_summary1,

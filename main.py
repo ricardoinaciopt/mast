@@ -2,7 +2,7 @@ import importlib
 import sys
 
 
-def run_scripts(scripts, resamplers, err_percentile):
+def run_scripts(scripts, resamplers, err_percentile, plot_results):
     errors = {}
     scores = {}
 
@@ -17,7 +17,7 @@ def run_scripts(scripts, resamplers, err_percentile):
             try:
                 print(f"\n\nStarting {script_name} with {resampler} resampling.\n")
                 errors1, errors2, roc_auc_score_1, roc_auc_score_2 = script_module.main(
-                    resampler, err_percentile
+                    resampler, err_percentile, plot_results
                 )
                 errors[name_errors] = (errors1, errors2)
                 scores[name_scores][resampler] = (roc_auc_score_1, roc_auc_score_2)
@@ -31,8 +31,9 @@ if __name__ == "__main__":
     scripts = ["tourism_M", "m3_M", "m4_M"]
     resamplers = ["SMOTE", "ADASYN"]
     err_percentile = 0.90
+    plot_results = False
 
-    errors, scores = run_scripts(scripts, resamplers, err_percentile)
+    errors, scores = run_scripts(scripts, resamplers, err_percentile, plot_results)
 
     try:
         save_tables = importlib.import_module("json2latex")
