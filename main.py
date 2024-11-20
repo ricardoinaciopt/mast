@@ -1,47 +1,31 @@
-import importlib
-import sys
+import subprocess
+
+cases = {
+    "M3": ["Monthly", "Quarterly", "Yearly"],
+    "M4": ["Monthly", "Quarterly", "Yearly"],
+}
 
 
-def run_scripts(scripts, resamplers, err_percentile, plot_results):
-    errors = {}
-    scores = {}
+for data, groups in cases.items():
+    for group in groups:
+        h = {"Monthly": "12", "Quarterly": "4", "Yearly": "4"}.get(group)
 
-    for script_name in scripts:
-        script_module = importlib.import_module(script_name)
-        name_errors = script_name + "_errors"
-        name_scores = script_name + "_roc_auc"
-        errors[name_errors] = {}
-        scores[name_scores] = {}
-
-        for resampler in resamplers:
-            try:
-                print(f"\n\nStarting {script_name} with {resampler} resampling.\n")
-                errors1, errors2, roc_auc_score_1, roc_auc_score_2 = script_module.main(
-                    resampler, err_percentile, plot_results
-                )
-                errors[name_errors] = (errors1, errors2)
-                scores[name_scores][resampler] = (roc_auc_score_1, roc_auc_score_2)
-            except Exception as e:
-                print(f"Error processing {script_name} with {resampler}: {e}")
-
-    return errors, scores
-
-
-if __name__ == "__main__":
-    scripts = ["tourism_M", "m3_M", "m4_M"]
-    resamplers = ["SMOTE", "ADASYN"]
-    err_percentile = 0.90
-    plot_results = False
-
-    errors, scores = run_scripts(scripts, resamplers, err_percentile, plot_results)
-
-    try:
-        save_tables = importlib.import_module("json2latex")
-        save_tables.save_latex_table(errors, "errors_to_latex_table")
-        save_tables.save_latex_table(scores, "save_scores_table")
-    except ImportError as e:
-        print(f"Error importing json2latex: {e}")
-    except Exception as e:
-        print(f"Error saving LaTeX tables: {e}")
-
-    sys.exit(0)
+        command = [
+            "python",
+            "./aug_pipeline.py",
+            "--data",
+            data,
+            "--group",
+            group,
+            "--horizon",
+            h,
+            "--models",
+            "LGBM",
+            # "Ridge",
+            # "XGB",
+            # "Lasso",
+            # "LinearRegression",
+            # "ElasticNet",
+            # "CatBoost",
+        ]
+        subprocess.run(command, check=True)

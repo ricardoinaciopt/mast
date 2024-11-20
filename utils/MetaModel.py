@@ -1,12 +1,22 @@
 import lightgbm as lgb
-from utils.Holdout import Holdout
-from sklearn.model_selection import GridSearchCV
-from imblearn.over_sampling import SMOTE, ADASYN
+import xgboost as xgb
+from sklearn.model_selection import RandomizedSearchCV
+
+# oversampling
+from imblearn.over_sampling import (
+    SMOTE,
+    ADASYN,
+    SVMSMOTE,
+    BorderlineSMOTE,
+)
+
+# undersampling
+from imblearn.under_sampling import RandomUnderSampler
 
 
 class MetaModel:
     """
-    MetaModel class for training a meta-model using LightGBM with optional data resampling.
+    MetaModel class for training a meta-model using LightGBM or XGBoost with optional data resampling.
 
     Attributes:
         train (pd.DataFrame): Training dataset.
@@ -15,86 +25,118 @@ class MetaModel:
         X (pd.DataFrame): Features.
         y (pd.Series): Target variable.
         resamplers (dict): Dictionary of resampling techniques.
-        classifier (LGBMClassifier): The best estimator (classifier) after tuning a lgb model.
+        classifier (LGBMClassifier or XGBoostClassifier): The best estimator (classifier) after tuning a given model.
 
     Methods:
         preprocess_set(train): Preprocesses the training set, including data resampling if specified.
-        fit_model(): Fits the LightGBM classifier model.
+        fit_model(): Fits the classifier model, while performing hyperparameter tuning, if specified.
     """
 
-    def __init__(self, train_set, model, resampler=None):
+    def __init__(self, train_set, model, columns_to_drop, resampler=None, tuning=True):
         """
         Initializes the MetaModel object.
 
         Args:
             train_set (pd.DataFrame): Training dataset.
             model (str): Name of the model.
+            columns_to_drop (list): Features to drop from the train dataset.
+            tuning (bool): Flag to specify if hyperparameter tuning should be conducted.
             resampler (str): Name of the data resampling technique (default=None).
         """
         self.model = model
         self.resampler = resampler
+        self.tuning = tuning
         self.train = train_set.copy()
+        self.columns_to_drop = columns_to_drop
         self.X = None
         self.y = None
         self.resamplers = {
             "SMOTE": SMOTE(),
             "ADASYN": ADASYN(),
+            "SVMSMOTE": SVMSMOTE(),
+            "BorderlineSMOTE": BorderlineSMOTE(),
+            "RandomUnderSampler": RandomUnderSampler(),
         }
         self.classifier = None
-        self.preprocess_set(self.train)
+        self.preprocess_set()
+        self.fit_model()
 
-    def preprocess_set(self, train):
+    def preprocess_set(self):
         """
         Preprocesses the training set, including data resampling if specified.
 
         Args:
             train (pd.DataFrame): Training dataset.
         """
-        train.set_index("unique_id", inplace=True)
-        train.drop(columns=["metric"], inplace=True)
-        train.fillna(0, inplace=True)
+        if "unique_id" in self.train.columns:
+            self.train.set_index("unique_id", inplace=True)
+        if "metric" in self.train.columns:
+            self.train.drop(
+                columns=["metric"], inplace=True
+            )  # remove this categorical feature first to allow resampling
+        self.train.fillna(0, inplace=True)
 
         if self.resampler and self.resampler in self.resamplers:
             data_to_resample = self.train.copy()
-            large_errors_mask = self.train["large_error"].astype(int)
+            threshold_mask = self.train["large_error"].astype(int)
 
             resampled_data, err_class = self.resamplers[self.resampler].fit_resample(
-                data_to_resample, large_errors_mask
+                data_to_resample, threshold_mask
             )
-            self.X = resampled_data.drop(["large_error", str(self.model)], axis=1)
+
+            self.X = resampled_data.drop(
+                [col for col in self.columns_to_drop if col in resampled_data.columns],
+                axis=1,
+            )
             self.y = resampled_data["large_error"]
         else:
-            self.X = train.drop(["large_error", str(self.model)], axis=1)
-            self.y = train["large_error"]
+            self.X = self.train.drop(
+                [col for col in self.columns_to_drop if col in self.train.columns],
+                axis=1,
+            )
+            self.y = self.train["large_error"]
 
     def fit_model(self):
         """
-        Fits the LightGBM classifier model.
+        Fits the classifier model.
         """
-        # fixed parameters
-        lgbm_params = {
-            "random_seed": 42,
-            "objective": "binary",
-            "boosting_type": "gbdt",
-            "verbosity": -1,
-        }
-        # grid for tuning
-        param_grid = {
-            "learning_rate": [0.02, 0.03, 0.04, 0.05],
-            "num_leaves": [8, 16, 32, 64],
-            "max_depth": [5, 10, 15],
-            "n_estimators": [50, 100, 150],
-        }
+        lgbm_params = {"n_estimators": 200, "verbosity": -1}
+        xgb_params = {"n_estimators": 200, "verbosity": 0}
 
-        lgbm = lgb.LGBMClassifier(**lgbm_params)
+        if self.model == "LGBM":
+            param_grid = {
+                "num_leaves": [3, 5, 10, 15],
+                "max_depth": [-1, 3, 5, 10, 15],
+                "lambda_l1": [0.1, 1, 10, 100],
+                "lambda_l2": [0.1, 1, 10, 100],
+                "learning_rate": [0.05, 0.1, 0.2],
+                "min_child_samples": [7, 15, 30],
+            }
+            estimator = lgb.LGBMClassifier(**lgbm_params)
+        elif self.model == "XGB":
+            param_grid = {
+                "max_depth": [3, 5, 10, 15],
+                "lambda": [0.1, 1, 10, 100],
+                "alpha": [0.1, 1, 10, 100],
+                "learning_rate": [0.05, 0.1, 0.2],
+                "min_child_weight": [7, 15, 30],
+            }
+            estimator = xgb.XGBClassifier(**xgb_params)
+        else:
+            print("Unsupported algorithm, use: LGBM or XGB.")
+            return
 
-        # cv = Holdout(n=self.X.shape[0])
-        grid_search = GridSearchCV(
-            estimator=lgbm,
-            param_grid=param_grid,
-            scoring="roc_auc",
-            n_jobs=-1,
-        )
-        grid_search.fit(self.X, self.y)
+        if self.tuning:
+            rnd_search = RandomizedSearchCV(
+                estimator=estimator,
+                param_distributions=param_grid,
+                scoring="roc_auc",
+                n_jobs=-1,
+            )
+            print(f"Starting MetaModel {self.model} tuning and fitting.")
+            rnd_search.fit(self.X, self.y)
 
-        self.classifier = grid_search.best_estimator_
+            self.classifier = rnd_search.best_estimator_
+        else:
+            print(f"Starting MetaModel {self.model} fitting.")
+            self.classifier = estimator.fit(self.X, self.y)

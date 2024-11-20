@@ -17,7 +17,6 @@ This repository includes several Python classes designed for different stages of
 - `BaselineModel`: Class for training and forecasting using a baseline model.
 - `MetaModel`: Class for training a metamodel using LightGBM with optional data resampling.
 - `PrepareDataset`: Class for loading and preprocessing datasets.
-- `Holdout`: Class for hold-out cross-validator generator.
 
 ## Classes
 
@@ -42,21 +41,20 @@ Methods:
 - `extract_features(train_set, frequency)`: Extracts features from the training set.
 
 ### ForecastingModel
-Class for training, tuning and forecasting using LightGBM model.
+Class for training and forecasting using a specified model or list of models with hyperparameter tuning.
+Model tuning is done using AutoModel from Nixtla and optuna.
+It takes sklearn-compatible regressors, and wraps them around an AutoModel object to find the best hyperparameters and make forecasts. if necessary, an interval of confidence can be specified.
 
 Attributes:
-- `frequency` (str): The frequency of the time series data.
-- `horizon` (int): Forecast horizon.
-- `lags` (list): List of lag values to use for the model.
+- `models` (str or list): Model(s) to prepare for evaluation.
 - `train_set` (pd.DataFrame): Training dataset.
-- `lgbm` (AutoMLForecast): LightGBM model.
-- `prediction` (pd.DataFrame): Forecasted predictions.
-- `execution_time` (float): Time taken for training in minutes.
+- `frequency` (str): The frequency of the time series data.
+- `horizon` (str): The forecasting horizon.
+- `seasonality` (str): The seasonal length of the time series data.
 
 Methods:
-- `train()`: Trains the LightGBM model and performs hyperparameter tuning.
-- `forecast()`: Generates forecast using the trained model.
-- `create_lag_transforms(lag_transforms, rolling_mean_value)`: Creates lag transforms dictionary.
+- `train()`: Trains the forecasting oject, on the specified model(s) and performs hyperparameter tuning.
+- `forecast()`: Generates forecast using the forecasting AutoMLForecast object.
 
 ### BaselineModel
 BaselineModel class for training and forecasting using a baseline model.
@@ -66,10 +64,7 @@ Attributes:
 - `seasonality` (int): Seasonality of the time series data.
 - `frequency` (str): Frequency of the time series data.
 - `prediction` (pd.DataFrame): Forecasted predictions.
-- `execution_time` (float): Time taken for forecasting in minutes.
 
-Methods:
-- `forecast(horizon)`: Generates forecast using a baseline model.
 
 ### MetaModel
 MetaModel class for training a metamodel using LightGBM with optional data resampling.
@@ -81,11 +76,11 @@ Attributes:
 - `X` (pd.DataFrame): Features.
 - `y` (pd.Series): Target variable.
 - `resamplers` (dict): Dictionary of resampling techniques.
-- `classifier` (LGBMClassifier): The best estimator (classifier) after tuning a lgb model.
+- `classifier` (LGBMClassifier or XGBoostClassifier): The best estimator (classifier) after tuning a given model.
 
 Methods:
 - `preprocess_set(train)`: Preprocesses the training set, including data resampling if specified.
-- `fit_model()`: Fits the LightGBM classifier model, while performing hyperparameter tuning.
+- `fit_model()`: Fits the classifier model, while performing hyperparameter tuning, if specified.
 
 ### PrepareDataset
 Class for loading and preprocessing datasets.
@@ -95,10 +90,23 @@ Attributes:
 - `dataset` (str): Name of the dataset (M3, M4, Tourism).
 - `group` (str): Group name.
 
-### Holdout
-Class for hold-out cross-validator generator.
+### TimeSeriesGenerator
+
+TimeSeriesGenerator class for generating synthetic time series data using the MetaForecast package. This class serves as a wrapper around various augmentation methods to provide a unified interface for generating enriched time series datasets.
 
 Attributes:
-- `n` (int):  Total number of samples.
-- `test_size` (float): Fraction of samples to use as test set. Must be a number between 0 and 1.
-- `random_state` (int): Seed for the random number generator.
+- `df` (DataFrame): Input DataFrame containing time series data. Assumes a `unique_id` column for identifying time series and optionally a `large_error` column for filtering.
+- `seasonality` (int or None): Specifies the seasonal period of the time series (e.g., 12 for monthly data).
+- `frequency` (str or None): Frequency of the time series (e.g., "M" for monthly, "Q" for quarterly).
+- `min_len` (int or None): Minimum length of the time series for augmentation.
+- `max_len` (int or None): Maximum length of the time series for augmentation.
+- `methods` (dict): A dictionary mapping method names to their respective classes and pre-configured instances of MetaForecast augmenters.
+
+Methods:
+- `get_class_methods(cls)`: Returns a list of method names defined in the specified class.
+
+- `generate_synthetic_dataset(method_name, n_samples = 100)`: 
+  Generates synthetic datasets using the specified augmentation method.
+
+
+

@@ -33,20 +33,14 @@ class PrepareDataset:
                 self.frequency = TourismDataset.frequency_pd[self.group]
             case _:
                 raise Exception("Invalid group: either choose M3, M4 or Tourism")
+        # convert series id to a categorical feature
+        # self.df["unique_id"] = self.df["unique_id"].astype("category")
         # convert "ds" column to int if not a datetime
-        if (
-            type(self.df["ds"].iloc[0]) == int
-            or type(self.df["ds"].iloc[0]) == np.int32
-            or type(self.df["ds"].iloc[0]) == np.int64
-        ):
+        if isinstance(self.df["ds"].iloc[0], (int, np.int32, np.int64)):
             self.df["ds"] = self.df["ds"].astype(int)
 
     def train_test_valid_dev_split(self, horizon):
-        test = self.df.groupby("unique_id").tail(horizon)
-        train = self.df.drop(test.index)
-        valid = train.groupby("unique_id").tail(horizon)
-        dev_set = train.drop(valid.index)
-        self.train = train
-        self.test = test
-        self.dev_set = dev_set
-        self.valid = valid
+        self.test = self.df.groupby("unique_id").tail(horizon)
+        self.train = self.df.drop(self.test.index).reset_index(drop=True)
+        self.valid = self.train.groupby("unique_id").tail(horizon)
+        self.dev_set = self.train.drop(self.valid.index).reset_index(drop=True)
