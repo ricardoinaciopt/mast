@@ -26,13 +26,24 @@ class MetaModel:
         y (pd.Series): Target variable.
         resamplers (dict): Dictionary of resampling techniques.
         classifier (LGBMClassifier or XGBoostClassifier): The best estimator (classifier) after tuning a given model.
+        target (str): Target variable to predict.
+        columns_to_drop (list): Features to drop from the train dataset.
+        tuning (bool): Flag to specify if hyperparameter tuning should be conducted.
 
     Methods:
         preprocess_set(train): Preprocesses the training set, including data resampling if specified.
         fit_model(): Fits the classifier model, while performing hyperparameter tuning, if specified.
     """
 
-    def __init__(self, train_set, model, columns_to_drop, resampler=None, tuning=True):
+    def __init__(
+        self,
+        train_set,
+        model,
+        columns_to_drop,
+        resampler=None,
+        target=None,
+        tuning=True,
+    ):
         """
         Initializes the MetaModel object.
 
@@ -58,6 +69,14 @@ class MetaModel:
             "RandomUnderSampler": RandomUnderSampler(),
         }
         self.classifier = None
+        if target == "error":
+            self.target = "large_error"
+        elif target == "uncertainty":
+            self.target = "large_uncertainty"
+        elif target == "certainty":
+            self.target = "le_lc"
+        else:
+            raise ValueError('Invalid target parameter. Use "error" or "uncertainty".')
         self.preprocess_set()
         self.fit_model()
 
@@ -78,7 +97,7 @@ class MetaModel:
 
         if self.resampler and self.resampler in self.resamplers:
             data_to_resample = self.train.copy()
-            threshold_mask = self.train["large_error"].astype(int)
+            threshold_mask = self.train[self.target].astype(int)
 
             resampled_data, err_class = self.resamplers[self.resampler].fit_resample(
                 data_to_resample, threshold_mask
@@ -88,13 +107,13 @@ class MetaModel:
                 [col for col in self.columns_to_drop if col in resampled_data.columns],
                 axis=1,
             )
-            self.y = resampled_data["large_error"]
+            self.y = resampled_data[self.target]
         else:
             self.X = self.train.drop(
                 [col for col in self.columns_to_drop if col in self.train.columns],
                 axis=1,
             )
-            self.y = self.train["large_error"]
+            self.y = self.train[self.target]
 
     def fit_model(self):
         """

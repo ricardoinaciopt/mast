@@ -4,31 +4,39 @@ import json
 import argparse
 import numpy as np
 import pandas as pd
-import xgboost as xgb
-import lightgbm as lgb
 from tsfeatures import tsfeatures
-from utils.MAST import MAST
-from utils.PrepareDataset import PrepareDataset
-from utils.BaselineModel import BaselineModel
-from utils.ForecastingModel import ForecastingModel
-from utils.MetaModel import MetaModel
-from utils.TimeSeriesGenerator import TimeSeriesGenerator
-
 from sklearn.metrics import roc_auc_score, log_loss, brier_score_loss
 from sklearn.isotonic import IsotonicRegression
+from utils.MAST import MAST
+from utils.MetaModel import MetaModel
+from utils.BaselineModel import BaselineModel
+from utils.PrepareDataset import PrepareDataset
+from utils.ForecastingModel import ForecastingModel
+from utils.TimeSeriesGenerator import TimeSeriesGenerator
 
 
 def balance_large_error(df, prefix):
-    df_0 = df.query("large_error == 0")
-    df_1 = df.query("large_error == 1")
+    df_0 = df.query("large_uncertainty == 0")
+    df_1 = df.query("large_uncertainty == 1")
 
-    df_1_SYN = df_1[df_1["unique_id"].str.contains(prefix)]
+    df_1_with_prefix = df_1[df_1["unique_id"].str.contains(prefix, na=False)]
 
-    df_1_sampled = df_1_SYN.sample(n=len(df_0), random_state=42)
+    df_1_without_prefix = df_1[~df_1["unique_id"].str.contains(prefix, na=False)]
 
+    if len(df_1_with_prefix) < len(df_0):
+        raise ValueError("Not enough syntehtic samples to balance the dataset.")
+
+    # sample synthetic series to match the number of non-large errors + non synthetic large errors
+    df_1_sampled = df_1_with_prefix.sample(
+        n=(len(df_0) - len(df_1_without_prefix)), random_state=42
+    )
+
+    balanced_df_1 = pd.concat([df_1_without_prefix, df_1_sampled])
+
+    # balanced dataset (len(large_error==0) == len(large_error==1))
     balanced_df = (
-        pd.concat([df_0, df_1_sampled])
-        .sample(frac=1, random_state=42)
+        pd.concat([df_0, balanced_df_1])
+        .sample(frac=1, random_state=42)  # shuffle dataset
         .reset_index(drop=True)
     )
 
@@ -58,6 +66,7 @@ def main(data, group, horizon, models):
     train = dataset.train
     test = dataset.test
 
+    # convert unique_id to categorical
     dev_set["unique_id"] = dev_set["unique_id"].astype("category")
     valid["unique_id"] = valid["unique_id"].astype(dev_set["unique_id"].dtype)
     train["unique_id"] = train["unique_id"].astype("category")
@@ -79,6 +88,7 @@ def main(data, group, horizon, models):
         frequency=frequency,
         horizon=horizon,
         seasonality=seasonality,
+        prediction_intervals=True,
     )
     fm.forecast(level=80)
 
@@ -108,16 +118,53 @@ def main(data, group, horizon, models):
         )
 
     MAST_dev.get_large_errors(model=best_model, metric="smape", quantile=0.80)
+
     datafile = data + "_" + group + ".csv"
     MAST_dev.extract_features(train_set=dev_set, filename=datafile)
 
+    MAST_dev.compute_uncertainty(
+        train_set=dev_set, predictions=MAST_dev.merged_forecasts, level=80
+    )
+    MAST_dev.get_large_uncertainty(model="LGBM", quantile=0.80)
+    features_errors_uncertainty_dev = MAST_dev.features_errors.copy()
+
+    features_errors_uncertainty_dev["large_uncertainty"] = (
+        features_errors_uncertainty_dev["unique_id"].apply(
+            lambda x: 1 if x in MAST_dev.large_uncertainty_ids else 0
+        )
+    )
+
+    conditions = [
+        (features_errors_uncertainty_dev["large_error"] == 0)
+        & (
+            features_errors_uncertainty_dev["large_uncertainty"] == 0
+        ),  # 0 - no stress (none)
+        (features_errors_uncertainty_dev["large_error"] == 1)
+        & (
+            features_errors_uncertainty_dev["large_uncertainty"] == 0
+        ),  # 1 - large error
+        (features_errors_uncertainty_dev["large_error"] == 0)
+        & (
+            features_errors_uncertainty_dev["large_uncertainty"] == 1
+        ),  # 2 - large uncertainty
+        (features_errors_uncertainty_dev["large_error"] == 1)
+        & (
+            features_errors_uncertainty_dev["large_uncertainty"] == 1
+        ),  # 3 - very stressed (both)
+    ]
+
+    choices = [0, 1, 2, 3]
+
+    features_errors_uncertainty_dev["class"] = np.select(conditions, choices)
+
     # metamodel data preparation
 
-    mm_full = MAST_dev.features_errors.copy()
+    mm_full = features_errors_uncertainty_dev.copy()
     mm_full.set_index("unique_id", inplace=True)
 
     cols_to_drop = [
         "large_error",
+        "error_quantile_LGBM",
         "large_uncertainty",
         "class",
     ]
@@ -140,6 +187,7 @@ def main(data, group, horizon, models):
         train_set=mm_train,
         model="LGBM",
         columns_to_drop=cols_to_drop,
+        target="uncertainty",
     )
 
     # metamodel2 - ADASYN
@@ -152,6 +200,7 @@ def main(data, group, horizon, models):
         model="LGBM",
         columns_to_drop=cols_to_drop,
         resampler="ADASYN",
+        target="uncertainty",
     )
 
     # metamodel3 - SMOTE
@@ -164,6 +213,7 @@ def main(data, group, horizon, models):
         model="LGBM",
         columns_to_drop=cols_to_drop,
         resampler="SMOTE",
+        target="uncertainty",
     )
 
     # metamodel4 - BorderlineSMOTE
@@ -176,6 +226,7 @@ def main(data, group, horizon, models):
         model="LGBM",
         columns_to_drop=cols_to_drop,
         resampler="BorderlineSMOTE",
+        target="uncertainty",
     )
 
     # metamodel5 - SVMSMOTE
@@ -188,6 +239,7 @@ def main(data, group, horizon, models):
         model="LGBM",
         columns_to_drop=cols_to_drop,
         resampler="SVMSMOTE",
+        target="uncertainty",
     )
 
     # metamodel6 - RandomUnderSampler
@@ -200,57 +252,66 @@ def main(data, group, horizon, models):
         model="LGBM",
         columns_to_drop=cols_to_drop,
         resampler="RandomUnderSampler",
+        target="uncertainty",
     )
 
+    # prefix to add to the generated time series
     prefix = "SYN"
+
     # metamodel7 - TSMixup
     # set seed
     np.random.seed(42)
 
-    mixup_set = dev_set.copy()
+    gen_set = dev_set.copy()
     # remove series present in the calibration set
-    mixup_set = mixup_set[~mixup_set["unique_id"].isin(mm_cal.index)]
-    mm_train_large_errors_ids = [
-        id for id in MAST_dev.large_errors_ids if id in mm_train.index
+    gen_set = gen_set[~gen_set["unique_id"].isin(mm_cal.index)]
+    mm_train_large_uncertainty_ids = [
+        id for id in MAST_dev.large_uncertainty_ids if id in mm_train.index
     ]
 
-    mixup_set["large_error"] = mixup_set["unique_id"].apply(
-        lambda x: 1 if x in mm_train_large_errors_ids else 0
+    gen_set["large_uncertainty"] = gen_set["unique_id"].apply(
+        lambda x: 1 if x in mm_train_large_uncertainty_ids else 0
     )
-    mixup_set["unique_id"] = mixup_set["unique_id"].cat.remove_unused_categories()
+    gen_set["unique_id"] = gen_set["unique_id"].cat.remove_unused_categories()
 
-    min_len = mixup_set["unique_id"].value_counts().min()
-    max_len = mixup_set["unique_id"].value_counts().max()
+    min_len = gen_set["unique_id"].value_counts().min()
+    max_len = gen_set["unique_id"].value_counts().max()
 
+    # define the synthetic data generator wrapper
     augmenter = TimeSeriesGenerator(
-        mixup_set,
+        gen_set,
+        dataset=data,
+        group=group,
         seasonality=seasonality,
         frequency=frequency,
         min_len=min_len,
         max_len=max_len,
+        target="uncertainty",
     )
 
-    augmented_df = augmenter.generate_synthetic_dataset(
-        method_name="TSMixup", n_samples=30
-    )
+    synthetic_ts_df = augmenter.generate_synthetic_dataset(method_name="TSMixup")
 
-    augmented_df["large_error"] = 1
+    synthetic_ts_df["large_uncertainty"] = 1
 
-    # to the generated series (+ original "large error" instances) re-add the remaining timeseries
-    mix_df = pd.concat(
+    # to the generated syntehtic series re-add the original timeseries
+    gen_df = pd.concat(
         [
-            mixup_set[mixup_set["large_error"] == 0].reset_index(drop=True),
-            augmented_df.reset_index(drop=True),
+            gen_set.reset_index(drop=True),
+            synthetic_ts_df.reset_index(drop=True),
         ],
         ignore_index=True,
     )
-    mix_df = mix_df.drop(columns="large_error")
+
+    if gen_df.duplicated().any():
+        raise ValueError("The synthetically augmented dataset has repeated values.")
 
     # extract features from original + generated series to train a metamodel
 
-    features = tsfeatures(mix_df, freq=seasonality)
-    features["large_error"] = features["unique_id"].apply(
-        lambda x: 1 if x in MAST_dev.large_errors_ids or prefix in x else 0
+    gen_df = gen_df.drop(columns="large_uncertainty")
+
+    features = tsfeatures(gen_df, freq=seasonality)
+    features["large_uncertainty"] = features["unique_id"].apply(
+        lambda x: 1 if x in mm_train_large_uncertainty_ids or prefix in x else 0
     )
     features = balance_large_error(features, prefix)
     features = features.fillna(0)
@@ -259,30 +320,31 @@ def main(data, group, horizon, models):
         train_set=features,
         model="LGBM",
         columns_to_drop=cols_to_drop,
+        target="uncertainty",
     )
 
     # metamodel8 - DBA
     # set seed
     np.random.seed(42)
-    augmented_df = augmenter.generate_synthetic_dataset(method_name="DBA", n_samples=30)
+    synthetic_ts_df = augmenter.generate_synthetic_dataset(method_name="DBA")
 
-    augmented_df["large_error"] = 1
+    synthetic_ts_df["large_uncertainty"] = 1
 
-    # to the generated series (+ original "large error" instances) re-add the remaining timeseries
-    mix_df = pd.concat(
+    # to the generated syntehtic series re-add the original timeseries
+    gen_df = pd.concat(
         [
-            mixup_set[mixup_set["large_error"] == 0].reset_index(drop=True),
-            augmented_df.reset_index(drop=True),
+            gen_set.reset_index(drop=True),
+            synthetic_ts_df.reset_index(drop=True),
         ],
         ignore_index=True,
     )
-    mix_df = mix_df.drop(columns="large_error")
-
     # extract features from original + generated series to train a metamodel
 
-    features = tsfeatures(mix_df, freq=seasonality)
-    features["large_error"] = features["unique_id"].apply(
-        lambda x: 1 if x in MAST_dev.large_errors_ids or prefix in x else 0
+    gen_df = gen_df.drop(columns="large_uncertainty")
+
+    features = tsfeatures(gen_df, freq=seasonality)
+    features["large_uncertainty"] = features["unique_id"].apply(
+        lambda x: 1 if x in mm_train_large_uncertainty_ids or prefix in x else 0
     )
     features = balance_large_error(features, prefix)
     features = features.fillna(0)
@@ -291,32 +353,32 @@ def main(data, group, horizon, models):
         train_set=features,
         model="LGBM",
         columns_to_drop=cols_to_drop,
+        target="uncertainty",
     )
 
     # metamodel9 - Jittering
     # set seed
     np.random.seed(42)
-    augmented_df = augmenter.generate_synthetic_dataset(
-        method_name="Jittering", n_samples=30
-    )
+    synthetic_ts_df = augmenter.generate_synthetic_dataset(method_name="Jittering")
 
-    augmented_df["large_error"] = 1
+    synthetic_ts_df["large_uncertainty"] = 1
 
-    # to the generated series (+ original "large error" instances) re-add the remaining timeseries
-    mix_df = pd.concat(
+    # to the generated syntehtic series re-add the original timeseries
+
+    gen_df = pd.concat(
         [
-            mixup_set[mixup_set["large_error"] == 0].reset_index(drop=True),
-            augmented_df.reset_index(drop=True),
+            gen_set.reset_index(drop=True),
+            synthetic_ts_df.reset_index(drop=True),
         ],
         ignore_index=True,
     )
-    mix_df = mix_df.drop(columns="large_error")
-
     # extract features from original + generated series to train a metamodel
 
-    features = tsfeatures(mix_df, freq=seasonality)
-    features["large_error"] = features["unique_id"].apply(
-        lambda x: 1 if x in MAST_dev.large_errors_ids or prefix in x else 0
+    gen_df = gen_df.drop(columns="large_uncertainty")
+
+    features = tsfeatures(gen_df, freq=seasonality)
+    features["large_uncertainty"] = features["unique_id"].apply(
+        lambda x: 1 if x in mm_train_large_uncertainty_ids or prefix in x else 0
     )
     features = balance_large_error(features, prefix)
     features = features.fillna(0)
@@ -325,40 +387,108 @@ def main(data, group, horizon, models):
         train_set=features,
         model="LGBM",
         columns_to_drop=cols_to_drop,
+        target="uncertainty",
     )
 
-    # metamodel10 - Scaling
+    # metamodel11 - Scaling
     # set seed
     np.random.seed(42)
-    augmented_df = augmenter.generate_synthetic_dataset(
-        method_name="Scaling", n_samples=30
-    )
+    synthetic_ts_df = augmenter.generate_synthetic_dataset(method_name="Scaling")
 
-    augmented_df["large_error"] = 1
+    synthetic_ts_df["large_uncertainty"] = 1
 
-    # to the generated series (+ original "large error" instances) re-add the remaining timeseries
-    mix_df = pd.concat(
+    # to the generated syntehtic series re-add the original timeseries
+    gen_df = pd.concat(
         [
-            mixup_set[mixup_set["large_error"] == 0].reset_index(drop=True),
-            augmented_df.reset_index(drop=True),
+            gen_set.reset_index(drop=True),
+            synthetic_ts_df.reset_index(drop=True),
         ],
         ignore_index=True,
     )
-    mix_df = mix_df.drop(columns="large_error")
-
     # extract features from original + generated series to train a metamodel
 
-    features = tsfeatures(mix_df, freq=seasonality)
-    features["large_error"] = features["unique_id"].apply(
-        lambda x: 1 if x in MAST_dev.large_errors_ids or prefix in x else 0
+    gen_df = gen_df.drop(columns="large_uncertainty")
+
+    features = tsfeatures(gen_df, freq=seasonality)
+    features["large_uncertainty"] = features["unique_id"].apply(
+        lambda x: 1 if x in mm_train_large_uncertainty_ids or prefix in x else 0
     )
     features = balance_large_error(features, prefix)
     features = features.fillna(0)
 
-    metamodel10 = MetaModel(
+    metamodel11 = MetaModel(
         train_set=features,
         model="LGBM",
         columns_to_drop=cols_to_drop,
+        target="uncertainty",
+    )
+
+    # metamodel12 - MagnitudeWarping
+    # set seed
+    np.random.seed(42)
+    synthetic_ts_df = augmenter.generate_synthetic_dataset(
+        method_name="MagnitudeWarping"
+    )
+
+    synthetic_ts_df["large_uncertainty"] = 1
+
+    # to the generated syntehtic series re-add the original timeseries
+    gen_df = pd.concat(
+        [
+            gen_set.reset_index(drop=True),
+            synthetic_ts_df.reset_index(drop=True),
+        ],
+        ignore_index=True,
+    )
+    # extract features from original + generated series to train a metamodel
+
+    gen_df = gen_df.drop(columns="large_uncertainty")
+
+    features = tsfeatures(gen_df, freq=seasonality)
+    features["large_uncertainty"] = features["unique_id"].apply(
+        lambda x: 1 if x in mm_train_large_uncertainty_ids or prefix in x else 0
+    )
+    features = balance_large_error(features, prefix)
+    features = features.fillna(0)
+
+    metamodel12 = MetaModel(
+        train_set=features,
+        model="LGBM",
+        columns_to_drop=cols_to_drop,
+        target="uncertainty",
+    )
+
+    # metamodel13 - TimeWarping
+    # set seed
+    np.random.seed(42)
+    synthetic_ts_df = augmenter.generate_synthetic_dataset(method_name="TimeWarping")
+
+    synthetic_ts_df["large_uncertainty"] = 1
+
+    # to the generated syntehtic series re-add the original timeseries
+    gen_df = pd.concat(
+        [
+            gen_set.reset_index(drop=True),
+            synthetic_ts_df.reset_index(drop=True),
+        ],
+        ignore_index=True,
+    )
+    # extract features from original + generated series to train a metamodel
+
+    gen_df = gen_df.drop(columns="large_uncertainty")
+
+    features = tsfeatures(gen_df, freq=seasonality)
+    features["large_uncertainty"] = features["unique_id"].apply(
+        lambda x: 1 if x in mm_train_large_uncertainty_ids or prefix in x else 0
+    )
+    features = balance_large_error(features, prefix)
+    features = features.fillna(0)
+
+    metamodel13 = MetaModel(
+        train_set=features,
+        model="LGBM",
+        columns_to_drop=cols_to_drop,
+        target="uncertainty",
     )
 
     # phase II
@@ -377,6 +507,7 @@ def main(data, group, horizon, models):
         frequency=frequency,
         horizon=horizon,
         seasonality=seasonality,
+        prediction_intervals=True,
     )
     fm2.forecast(level=80)
 
@@ -400,6 +531,10 @@ def main(data, group, horizon, models):
     )
     print(f"\n{evaluation}\n")
 
+    os.makedirs(f"lgbm_results/lu", exist_ok=True)
+    with open(f"lgbm_results/lu/q80_{data}_{group}.txt", "w") as f:
+        f.write(str(evaluation))
+
     best_model = mast.select_best()
     if best_model == "SeasonalNaive":
         raise ValueError(
@@ -410,24 +545,64 @@ def main(data, group, horizon, models):
     datafile = data + "_" + group + ".csv"
     mast.extract_features(train_set=train, filename=datafile)
 
+    mast.compute_uncertainty(
+        train_set=dev_set, predictions=mast.merged_forecasts, level=80
+    )
+    mast.get_large_uncertainty(model="LGBM", quantile=0.80)
+
+    features_errors_uncertainty = mast.features_errors.copy()
+    features_errors_uncertainty["large_uncertainty"] = features_errors_uncertainty[
+        "unique_id"
+    ].apply(lambda x: 1 if x in mast.large_uncertainty_ids else 0)
+
+    conditions = [
+        (features_errors_uncertainty["large_error"] == 0)
+        & (
+            features_errors_uncertainty["large_uncertainty"] == 0
+        ),  # 0 - no stress (none)
+        (features_errors_uncertainty["large_error"] == 1)
+        & (features_errors_uncertainty["large_uncertainty"] == 0),  # 1 - large error
+        (features_errors_uncertainty["large_error"] == 0)
+        & (
+            features_errors_uncertainty["large_uncertainty"] == 1
+        ),  # 2 - large uncertainty
+        (features_errors_uncertainty["large_error"] == 1)
+        & (
+            features_errors_uncertainty["large_uncertainty"] == 1
+        ),  # 3 - very stressed (both)
+    ]
+
+    choices = [0, 1, 2, 3]
+
+    features_errors_uncertainty["class"] = np.select(conditions, choices)
+
     # Features and large_errors from the full "train" data, to test metamodels
 
-    full_features_df = mast.features_errors.copy()
+    full_features_df = features_errors_uncertainty.copy()
     full_features_df.set_index("unique_id", inplace=True)
     full_features_df.drop(
         columns=mast.error_summary.columns.drop("SeasonalNaive").to_list(), inplace=True
     )
     full_features_df.fillna(0, inplace=True)
 
-    X_t = full_features_df.drop(["large_error"], axis=1)
-    y_t = full_features_df["large_error"]
+    # Save data for errors and uncertainty analysis.
+    err_unc_file = os.path.join("errors_uncertainty", f"{data}_{group}_full.csv")
+
+    if not os.path.exists(err_unc_file):
+        os.makedirs("errors_uncertainty", exist_ok=True)
+        mm_full.to_csv(err_unc_file)
+
+    X_t = full_features_df.drop(
+        ["large_uncertainty", "large_error", "error_quantile_LGBM", "class"], axis=1
+    )
+    y_t = full_features_df["large_uncertainty"]
 
     # Inference
 
     # calibration using isotonic regression
 
     X_cal = mm_cal.drop([col for col in cols_to_drop if col in mm_cal.columns], axis=1)
-    y_cal = mm_cal["large_error"]
+    y_cal = mm_cal["large_uncertainty"]
 
     # check if there is leakage from train and calibration data
 
@@ -443,7 +618,14 @@ def main(data, group, horizon, models):
 
     oversamplers = ["ADASYN", "SMOTE", "BorderlineSMOTE", "SVMSMOTE"]
     undersamplers = ["RandomUnderSampler"]
-    generators = ["TSMixup", "DBA", "Jittering", "Scaling"]
+    generators = [
+        "TSMixup",
+        "DBA",
+        "Jittering",
+        "Scaling",
+        "MagnitudeWarping",
+        "TimeWarping",
+    ]
     models = oversamplers + undersamplers + generators + ["No Resampling"]
 
     meta_models = [
@@ -455,7 +637,9 @@ def main(data, group, horizon, models):
         metamodel7,
         metamodel8,
         metamodel9,
-        metamodel10,
+        metamodel11,
+        metamodel12,
+        metamodel13,
         metamodel1,
     ]
 
@@ -475,16 +659,18 @@ def main(data, group, horizon, models):
     # calibrated isotonic models on the test set
 
     def calibrated_predict(X, y):
-        log_losses_t = []
+        roc_auc_t, log_losses_t, brier_scores_t = [], [], []
         for i, mm in enumerate(meta_models):
             y_prob_before = mm.classifier.predict_proba(X)[:, 1]
             y_prob_calibrated = calibrated_models[i].transform(y_prob_before)
 
+            roc_auc_t.append(roc_auc_score(y, y_prob_calibrated))
             log_losses_t.append(log_loss(y, y_prob_calibrated))
+            brier_scores_t.append(brier_score_loss(y, y_prob_calibrated))
 
-        return log_losses_t
+        return roc_auc_t, log_losses_t, brier_scores_t
 
-    log_losses = calibrated_predict(X_t, y_t)
+    roc_aucs, log_losses, brier_scores = calibrated_predict(X_t, y_t)
     sorted_results = sorted(zip(models, log_losses), key=lambda x: x[1])
 
     print("\nCalibrated Predictions:\n")
@@ -501,23 +687,20 @@ def main(data, group, horizon, models):
         print(f"{color}{model}\033[0m Log Loss: {l_loss:.3f}")
     print()
 
+    # Save the evaluation results
+    results = {
+        "roc_aucs": {model: roc_auc for model, roc_auc in zip(models, roc_aucs)},
+        "log_losses": {model: log_loss for model, log_loss in zip(models, log_losses)},
+        "brier_scores": {
+            model: brier_score for model, brier_score in zip(models, brier_scores)
+        },
+    }
 
-# Save the evaluation results
-# results = {}
-# for i in range(len(models)):
-#     results[models[i]] = {
-#         "ROC AUC": round(roc_aucs[i], 3),
-#         "Log Loss": round(log_losses[i], 3),
-#         "Brier Score": round(brier_scores[i], 3),
-#     }
+    os.makedirs(f"results/lu", exist_ok=True)
+    with open(f"results/lu/q80_{data}_{group}.json", "w") as f:
+        json.dump(results, f, indent=4)
 
-# os.makedirs(f"results_q80_{data}_{group}", exist_ok=True)
-# with open(
-#     f"results_q80_{data}_{group}/calibration_{oversampler}_{generator}.txt", "w"
-# ) as f:
-#     json.dump(results, f, indent=4)
-
-# print(f"\nEvaluation results saved to 'calibration_{oversampler}_{generator}.txt'")
+    print(f"\nEvaluation results saved to 'results/lu/q80_{data}_{group}.json'")
 
 
 if __name__ == "__main__":

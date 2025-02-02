@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-import numpy as np
+from scipy.stats import rankdata
 from functools import partial
 from utilsforecast.losses import *
 from utilsforecast.evaluation import evaluate
@@ -28,6 +28,8 @@ class MAST:
         large_uncertainty_ids (np.ndarray): Array of unique IDs with large uncertainty.
         features_errors (pd.DataFrame): DataFrame containing features and errors.
         avg_uncertainty_df (pd.DataFrame): DataFrame containing the avergae interval size for each timeseries.
+        interval_summary (pd.DataFrame): DataFrame containing the average interval size for each model.
+        error_summary (pd.DataFrame): DataFrame containing the average error for each model.
 
     Methods:
         merge_predictions(): Merges model predictions with the test set.
@@ -118,6 +120,15 @@ class MAST:
         self.errors_df = self.evaluation.copy()
         self.errors_df = self.errors_df[self.errors_df["metric"] == metric]
 
+        # compute error quantile
+        self.errors_df[f"error_quantile_{model}"] = (
+            (
+                rankdata(self.errors_df[model], method="average")
+                / len(self.errors_df)
+                * 100
+            )
+        ).astype(int)
+
         if quantile != None:
             print(f"Large Errors threshold setting: {int(quantile*100)}th quantile.")
             # calculate the nth percentile of the errors (large errors), for the desired model
@@ -197,11 +208,24 @@ class MAST:
                 .mean()
                 .rename(f"avg_interval_size_{model}")
             )
+
             avg_uncertainty_df = pd.concat(
                 [avg_uncertainty_df, model_avg_uncertainty], axis=1
             )
+
         self.avg_uncertainty_df = avg_uncertainty_df.reset_index()
         self.avg_uncertainty_df.rename(columns={"index": "unique_id"}, inplace=True)
+
+        for model in models:
+            # compute uncertainty quantile
+            self.avg_uncertainty_df[f"uncertainty_quantile_{model}"] = (
+                rankdata(
+                    self.avg_uncertainty_df[f"avg_interval_size_{model}"],
+                    method="average",
+                )
+                / len(self.avg_uncertainty_df)
+                * 100
+            ).astype(int)
 
         self.interval_summary = pd.DataFrame()
         for col in self.avg_uncertainty_df.columns[1:]:
@@ -224,13 +248,43 @@ class MAST:
         if col not in self.avg_uncertainty_df.columns:
             raise ValueError(f"{model} not found.")
 
-        percentile_n_i = self.avg_uncertainty_df[col].quantile(quantile)
+        if quantile != None:
+            print(
+                f"Large Uncertainty threshold setting: {int(quantile*100)}th quantile."
+            )
 
-        self.large_uncertainty_df = self.avg_uncertainty_df[
-            (self.avg_uncertainty_df[col] > percentile_n_i)
-        ]
-        self.large_uncertainty_ids = self.large_uncertainty_df["unique_id"].unique()
-        return self.large_uncertainty_ids
+            percentile_n_i = self.avg_uncertainty_df[col].quantile(quantile)
+            self.large_uncertainty_df = self.avg_uncertainty_df[
+                (self.avg_uncertainty_df[col] > percentile_n_i)
+            ]
+            self.large_uncertainty_ids = self.large_uncertainty_df["unique_id"].unique()
+            return self.large_uncertainty_ids
+        raise ValueError("'quantile' must be defined.")
+
+    def get_large_certainty(self, model, quantile):
+        """
+        Identifies predictions with large certainty intervals for a specified model.
+
+        Args:
+            model (str): The name of the model to analyze.
+            quantile (float): Quantile value for certainty threshold.
+        """
+        col = f"avg_interval_size_{model}"
+
+        if col not in self.avg_uncertainty_df.columns:
+            raise ValueError(f"{model} not found.")
+
+        if quantile != None:
+            print(f"Large Certainty threshold setting: {int(quantile*100)}th quantile.")
+
+            percentile_n_i = self.avg_uncertainty_df[col].quantile(quantile)
+            self.large_certainty_df = self.avg_uncertainty_df[
+                (self.avg_uncertainty_df[col] <= percentile_n_i)
+            ]
+            self.large_certainty_ids = self.large_certainty_df["unique_id"].unique()
+
+            return self.large_certainty_ids
+        raise ValueError("'quantile' must be defined.")
 
     def extract_features(self, train_set, filename=None):
         """

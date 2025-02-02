@@ -8,6 +8,47 @@ To use the classes and scripts provided in this repository, follow the instructi
 
 To initiate experiments and evaluate different models and resampling techniques, use `main.py`. Specify the scripts and resamplers to use within `main.py` before execution.
 
+### Running Experiments
+
+Experiments are divided into three groups: Monthly, Quarterly, and Yearly. Each group has a different number of periods for the horizon. The following commands can be used to run each type of experiment:
+
+- For large errors experiment:
+  ```sh
+  python main.py --experiment large_errors
+  ```
+
+- For large uncertainty experiment:
+  ```sh
+  python main.py --experiment large_uncertainty
+  ```
+
+- For large error but low uncertainty (large certainty) experiment:
+  ```sh
+  python main.py --experiment large_certainty
+  ```
+
+The `main.py` script will generate the pipelines for the experiments based on the specified experiment type and the dataset groups (Monthly, Quarterly, Yearly).
+
+Alternativly, one can also specify the correct experiment in `main.py`, by updating the script path in the `command` list:
+
+```python
+command = [
+    "python",
+    # ./gen_pipeline_le.py for large errors experiment
+    # ./gen_pipeline_lu.py for large uncertainty experiment
+    # ./gen_pipeline_lc.py for large error but low uncertainty (large certainty) experiment
+    "./gen_pipeline_le.py",  # Change this to the appropriate script
+    "--data",
+    data,
+    "--group",
+    group,
+    "--horizon",
+    h,
+    "--models",
+    "LGBM",
+]
+```
+
 ## Classes Overview
 
 This repository includes several Python classes designed for different stages of the metamodel creation for predicting and evaluating stress testing and conditions:
@@ -17,6 +58,7 @@ This repository includes several Python classes designed for different stages of
 - `BaselineModel`: Class for training and forecasting using a baseline model.
 - `MetaModel`: Class for training a metamodel using LightGBM with optional data resampling.
 - `PrepareDataset`: Class for loading and preprocessing datasets.
+- `TimeSeriesGenerator`: Class for generating synthetic time series data using the MetaForecast package.
 
 ## Classes
 
@@ -95,18 +137,17 @@ Attributes:
 TimeSeriesGenerator class for generating synthetic time series data using the MetaForecast package. This class serves as a wrapper around various augmentation methods to provide a unified interface for generating enriched time series datasets.
 
 Attributes:
-- `df` (DataFrame): Input DataFrame containing time series data. Assumes a `unique_id` column for identifying time series and optionally a `large_error` column for filtering.
+- `df` (pd.DataFrame): Input DataFrame containing time series data. Assumes a `unique_id` column for identifying time series and optionally a target column for filtering.
 - `seasonality` (int or None): Specifies the seasonal period of the time series (e.g., 12 for monthly data).
 - `frequency` (str or None): Frequency of the time series (e.g., "M" for monthly, "Q" for quarterly).
 - `min_len` (int or None): Minimum length of the time series for augmentation.
 - `max_len` (int or None): Maximum length of the time series for augmentation.
 - `methods` (dict): A dictionary mapping method names to their respective classes and pre-configured instances of MetaForecast augmenters.
+- `target` (str): Specifies the target variable to use for synthetic generation. Can be one of "errors" (large errors), "uncertainty" (large uncertainty), or "certainty" (low errors and uncertainty).
 
 Methods:
 - `get_class_methods(cls)`: Returns a list of method names defined in the specified class.
-
-- `generate_synthetic_dataset(method_name, n_samples = 100)`: 
-  Generates synthetic datasets using the specified augmentation method.
+- `generate_synthetic_dataset(method_name, n_samples=100)`: Generates synthetic datasets using the specified augmentation method.
 
 
 

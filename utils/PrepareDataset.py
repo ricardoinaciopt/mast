@@ -1,10 +1,29 @@
 import numpy as np
 from datasetsforecast.m3 import M3, M3Info
 from datasetsforecast.m4 import M4, M4Info
-from utils.data.codebase.load_data.tourism import TourismDataset
 
 
 class PrepareDataset:
+    """
+    Class to load and prepare datasets for forecasting.
+
+    Attributes:
+        dataset (str): Name of the dataset to load. Choose between "M3" or "M4".
+        group (str): Name of the dataset group to load.
+        directory (str): Directory where the dataset is stored.
+        df (pd.DataFrame): DataFrame containing the dataset.
+        seasonality (int): Seasonality of the dataset.
+        frequency (str): Frequency of the dataset.
+        train (pd.DataFrame): DataFrame containing the training set.
+        test (pd.DataFrame): DataFrame containing the test set.
+        dev_set (pd.DataFrame): DataFrame containing the development set.
+        valid (pd.DataFrame): DataFrame containing the validation set.
+
+    Methods:
+        load_dataset: Load the dataset.
+        train_test_valid_dev_split: Split the dataset into training, test, development and validation sets.
+    """
+
     def __init__(self, dataset, group, directory="utils/data/assets/datasets"):
         self.directory = directory
         self.dataset = dataset
@@ -27,14 +46,8 @@ class PrepareDataset:
                 self.df, *_ = M4.load(directory=self.directory, group=self.group)
                 self.seasonality = M4Info[self.group].seasonality
                 self.frequency = M4Info[self.group].freq
-            case "Tourism":
-                self.df = TourismDataset.load_data(self.group)
-                self.seasonality = TourismDataset.frequency_map[self.group]
-                self.frequency = TourismDataset.frequency_pd[self.group]
             case _:
-                raise Exception("Invalid group: either choose M3, M4 or Tourism")
-        # convert series id to a categorical feature
-        # self.df["unique_id"] = self.df["unique_id"].astype("category")
+                raise Exception("Invalid group: either choose M3 or M4")
         # convert "ds" column to int if not a datetime
         if isinstance(self.df["ds"].iloc[0], (int, np.int32, np.int64)):
             self.df["ds"] = self.df["ds"].astype(int)

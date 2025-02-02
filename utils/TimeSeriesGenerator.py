@@ -19,32 +19,31 @@ class TimeSeriesGenerator:
     warping, jittering, and more.
 
     Attributes:
-    - df (pd.DataFrame):
-        Input DataFrame containing the time series data.
-    - seasonality (int or None):
-        Specifies the seasonal period of the time series. Required for seasonal-specific
-        methods.
-    - frequency (str or None):
-        Indicates the frequency of the time series.
-    - min_len (int or None):
-        Minimum length of time series to consider during augmentation.
-    - max_len (int or None):
-        Maximum length of time series to consider during augmentation.
-    - methods (dict):
-        Maps augmentation method names to their respective MetaForecast class and
-        initialized objects, pre-configured for the provided attributes.
+        df (pd.DataFrame): Input DataFrame containing the time series data.
+        dataset (str or None): Specifies the selected dataset, to augment with a given method.
+        group (str or None): Specifies the sampling frequency of the dataset used.
+        seasonality (int or None): Specifies the seasonal period of the time series. Required for seasonal-specific methods.
+        frequency (str or None): Indicates the frequency of the time series.
+        min_len (int or None): Minimum length of time series to consider during augmentation.
+        max_len (int or None): Maximum length of time series to consider during augmentation.
+        methods (dict): Maps augmentation method names to their respective MetaForecast class and initialized objects pre-configured for the provided attributes.
+        target (str): Specifies the target variable to use for synthetic generation. Can be one of "errors" (large errors), "uncertainty" (large uncertainty), or "certainty" (low errors and uncertainty).
 
     Methods:
-        get_class_methods(type):
-        Returns the list of method names defined within a given class.
-
-        generate_synthetic_dataset(method_name, n_samples = 100):
-        Generates a synthetic dataset using the specified augmentation method. Supports
-        multiple augmentation techniques, both `transform`-based and custom synthetic generation.
+        get_class_methods(cls): Returns the names of all methods defined within a given class.
+        generate_synthetic_dataset(method_name): Generates a synthetic dataset using the specified augmentation method and returns the augmented DataFrame.
     """
 
     def __init__(
-        self, df, seasonality=None, frequency=None, min_len=None, max_len=None
+        self,
+        df,
+        dataset=None,
+        group=None,
+        seasonality=None,
+        frequency=None,
+        min_len=None,
+        max_len=None,
+        target=None,
     ):
         """
         Initializes the TimeSeriesGenerator with dataset attributes and pre-configures
@@ -52,17 +51,21 @@ class TimeSeriesGenerator:
 
         Args:
             df (pd.DataFrame): The input dataset containing time series data.
+            dataset (str or None): The selected dataset, to augment with a given method.
+            group (str or None): The sampling frequency of the dataset used.
             seasonality (int or None): Seasonal period of the data.
             frequency (str or None): Frequency of the data.
             min_len (int or None): Minimum time series length for augmentation.
             max_len (int or None): Maximum time series length for augmentation.
+            target (str or None): Target variable for synthetic generation.
         """
         self.df = df
+        self.dataset = dataset
+        self.group = group
         self.seasonality = seasonality
         self.frequency = frequency
         self.min_len = min_len
         self.max_len = max_len
-
         self.methods = {
             "TSMixup": [
                 TSMixup,
@@ -79,6 +82,14 @@ class TimeSeriesGenerator:
             "SeasonalMBB": [SeasonalMBB, SeasonalMBB(seas_period=self.seasonality)],
             "Jittering": [Jittering, Jittering()],
         }
+        if target == "errors":
+            self.target = "large_error"
+        elif target == "uncertainty":
+            self.target = "large_uncertainty"
+        elif target == "certainty":
+            self.target = "le_lc"
+        else:
+            raise ValueError('Invalid target parameter. Use "errors" or "uncertainty".')
 
     def get_class_methods(self, cls):
         """
@@ -96,38 +107,68 @@ class TimeSeriesGenerator:
         ]
         return class_methods
 
-    def generate_synthetic_dataset(self, method_name, n_samples=100):
+    def generate_synthetic_dataset(self, method_name):
         """
         Generates a synthetic dataset using the specified augmentation method.
 
         Args:
             method_name (str): Name of the augmentation method to use.
-            n_samples (int, default=100): Number of synthetic samples to generate.
         """
+        gen_diff = self.df[self.target].value_counts().get(0, 0) - self.df[
+            self.target
+        ].value_counts().get(1, 0)
+
+        # decrease the number of series to generate, to reduce computation times
+        # these values are arbitrary and can be adjusted, as each was chosen empirically
+
+        # size of generation based on dataset, group, and approach (transform or loop)
+        gen_size_transform1, gen_size_transform2, gen_size_loop = {
+            ("M4", "Monthly"): (200, 200, 1000000),
+            ("M4", "Quarterly"): (40, 60, 250000),
+            ("M4", "Yearly"): (20, 20, 50000),
+        }.get((self.dataset, self.group), (40, 60, 10000))
+        # factor to reduce based on the sampling frequency
+        gen_factor = {
+            "M": 1,
+            "MS": 1,
+            "Q": 4,
+            "QS": 4,
+            "Y": 8,
+            "YS": 8,
+        }.get(self.frequency, 1)
+
         if method_name in {"DBA", "TSMixup"}:
             self.df["unique_id"] = self.df["unique_id"].astype("str")
         method = self.methods.get(method_name)[1]
         cls = self.methods.get(method_name)[0]
         if not method:
             raise ValueError(f"Unknown method_name: {method_name}")
-        df = self.df[self.df["large_error"] == 1].drop(columns="large_error")
+        df = self.df[self.df[self.target] == 1].drop(columns=self.target)
         augmented_dfs = []
-
         if "transform" in self.get_class_methods(cls):
-            n_samples *= 100
-            if method_name == "KernelSynth":
-                augmented_df = method.transform(n_samples)
+            if method_name in {"TSMixup", "KernelSynth"}:
+                gen_diff = round(gen_diff / (gen_size_transform1 / gen_factor))
             else:
-                augmented_df = method.transform(df, n_samples)
+                gen_diff = round(gen_diff / (gen_size_transform2 / gen_factor))
+            print("Generating ", gen_diff, " series with: ", method_name)
+            if method_name == "KernelSynth":
+                augmented_df = method.transform(gen_diff)
+            else:
+                augmented_df = method.transform(df, gen_diff)
             augmented_df["unique_id"] = augmented_df["unique_id"].astype(str) + "_SYN"
             augmented_dfs.append(augmented_df.copy())
         else:
-            for i in range(n_samples):
+            gen_diff = round(gen_diff / (gen_size_loop / gen_factor))
+            if self.target == "le_lc":
+                gen_diff *= 10
+            print("Generating ", gen_diff, " series with: ", method_name)
+
+            for i in range(gen_diff):
                 augmented_df = method._create_synthetic_ts(df)
                 augmented_df["unique_id"] = (
                     augmented_df["unique_id"].astype(str).str.split("_").str[0]
                     + f"_SYN{i+1}"
                 )
                 augmented_dfs.append(augmented_df.copy())
-
+        print("Done generating.")
         return pd.concat(augmented_dfs, axis=0).reset_index(drop=True)

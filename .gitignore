@@ -5,10 +5,11 @@ ida_files/
 metadatasets/
 deprecated_files/
 reference_data/
-generated_data/
-figs/
+generate*
 analysis/
-results/
+visualizations/
+errors_uncertainty/
+figs/
 ranking_scripts/
 utils/data/codebase/
 utils/data/assets/datasets/m3/
@@ -16,6 +17,5 @@ utils/data/assets/datasets/m4/
 utils/data/assets/datasets/tourism/
 *_old.py*
 *_data.py*
-*.ipynb
 .ipynb_checkpoints/
 .DS_Store

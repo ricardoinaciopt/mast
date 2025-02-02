@@ -40,6 +40,7 @@ class ForecastingModel:
         frequency (str): The frequency of the time series data.
         horizon (str): The forecasting horizon.
         seasonality (str): The seasonal length of the time series data.
+        prediction_intervals (bool): Flag to indicate if prediction intervals must be computed.
     """
 
     def __init__(
@@ -47,30 +48,31 @@ class ForecastingModel:
         models,
         train_set,
         frequency,
-        horizon,
         seasonality,
+        horizon,
+        prediction_intervals=False,
     ):
         """
         Initializes the ForecastingModel object.
 
         Args:
             models (str or list): Model(s) to prepare for evaluation.
-            regressor (AutoMLForecast): The regressor object, that contains the model, or the list of tuned models.
             train_set (pd.DataFrame): Training dataset.
             frequency (str): The frequency of the time series data.
-            horizon (str): The forecasting horizon.
             seasonality (str): The seasonal length of the time series data.
-            prediction (Dataframe): Result of the predictions made by the regressor object.
+            horizon (str): The forecasting horizon.
+            prediction_intervals (bool): Flag to indicate if prediction intervals must be computed.
         """
-        self.frequency = frequency
-        self.horizon = horizon
-        self.seasonality = seasonality
-        self.train_set = train_set
         self.models = None
+        self.train_set = train_set
+        self.frequency = frequency
+        self.seasonality = seasonality
+        self.horizon = horizon
+        self.prediction_intervals = prediction_intervals
         self.regressor = None
         self.prediction = None
 
-        # handle models that don't support categorical features, enconding them
+        # handle models that don't support categorical features, encoding them
         def handle_categoric(model, model_name):
             cat_pipeline = make_pipeline(
                 ColumnTransformer(
@@ -102,10 +104,10 @@ class ForecastingModel:
         # supported models / algorithms
         self.supported_models = {
             "LGBM": AutoLightGBM(),
-            "ElasticNet": handle_categoric(ElasticNet, "elasticnet"),
             "XGB": AutoXGBoost(
                 config=lambda trial: {"enable_categorical": True},
             ),
+            "ElasticNet": handle_categoric(ElasticNet, "elasticnet"),
             "Lasso": handle_categoric(Lasso, "lasso"),
             "Ridge": handle_categoric(Ridge, "ridge"),
             "LinearRegression": handle_categoric(LinearRegression, "linearregression"),
@@ -150,29 +152,53 @@ class ForecastingModel:
                 "target_transforms": [Differences([difference])],
             }
 
+        # AutoMLForecast fit arguments
+        fit_kwargs = {
+            "df": self.train_set,
+            "h": self.horizon,
+            "num_samples": 10,
+            "n_windows": 2,
+        }
+
+        # add prediction intervals if specified
+        if self.prediction_intervals:
+            fit_kwargs["prediction_intervals"] = PredictionIntervals(h=self.horizon)
+
         optuna.logging.set_verbosity(optuna.logging.ERROR)
         self.regressor = AutoMLForecast(
             models=self.models,
             freq=self.frequency,
             season_length=self.seasonality,
             init_config=init_config,
-            # fit_config=lambda trial: {"static_features": ["unique_id"]},
             num_threads=len(self.models),
-        ).fit(
-            df=self.train_set,
-            h=self.horizon,
-            num_samples=10,
-            n_windows=2,
-            # prediction_intervals=PredictionIntervals(h=self.horizon),
-        )
+        ).fit(**fit_kwargs)
 
-    def forecast(self, level):
+    def forecast(self, level=None):
         """
         Generates forecast using the trained AutoMLForecast object.
+
+        Args:
+            level (int or list, optional): Confidence level(s) for prediction intervals.
+
+        Raises:
+            ValueError: If `level` is not provided when `prediction_intervals` is True.
         """
-        self.prediction = self._simplify_names(
-            self.regressor.predict(h=self.horizon, level=[level])
-        )
+        if self.prediction_intervals:
+            if not level:
+                raise ValueError(
+                    "'level' must be defined to compute prediction intervals when 'prediction_intervals' is True."
+                )
+            self.prediction = self._simplify_names(
+                self.regressor.predict(h=self.horizon, level=[level])
+            )
+        else:
+            self.prediction = self._simplify_names(
+                self.regressor.predict(h=self.horizon)
+            )
+            if level:
+                raise Warning(
+                    "The 'level' was specified, however, 'prediction_intervals' was not set to True, in the 'ForecastingModel' class initialization."
+                )
 
     def _simplify_names(self, df):
         """
