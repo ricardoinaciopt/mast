@@ -19,7 +19,7 @@ for data, groups in cases.items():
             # ./gen_pipeline_le.py for large errors experiment
             # ./gen_pipeline_lu.py for large uncertainty experiment
             # ./gen_pipeline_lc.py for large error but low uncertainty (large certainty) experiment
-            "./gen_pipeline_lc.py",
+            "./gen_pipeline_le.py",
             "--data",
             data,
             "--group",
