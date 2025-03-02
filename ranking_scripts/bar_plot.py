@@ -9,14 +9,19 @@ parser = argparse.ArgumentParser(description="Process log loss data from JSON fi
 parser.add_argument(
     "directory",
     type=str,
-    help="Path to the directory containing JSON files starting with 'q80_'.",
+    help="Path to the directory containing JSON files.",
+)
+parser.add_argument(
+    "prefix",
+    type=str,
+    help="Prefix of the JSON files to process (e.g., 'q80_').",
 )
 args = parser.parse_args()
 
 datasets = {}
 
 for file_name in os.listdir(args.directory):
-    if file_name.startswith("q80_") and file_name.endswith(".json"):
+    if file_name.startswith(args.prefix) and file_name.endswith(".json"):
         key = file_name.split("_", 1)[1].rsplit(".", 1)[0].replace("_", " ")
         file_path = os.path.join(args.directory, file_name)
         with open(file_path, "r") as file:
@@ -106,7 +111,7 @@ plt.legend(
 plt.tight_layout()
 os.makedirs("figs", exist_ok=True)
 # windows
-# path = f"figs/{args.directory.split("\\", 1)[1].rsplit(".", 1)[0].replace("\\", "_")}average_rank_plot.pdf"
+# path = f"figs/{args.directory.split('\\', 1)[1].rsplit('.', 1)[0].replace('\\', '_')}_average_rank_plot.pdf"
 # mac os
 path = f"figs/{args.directory.split('/', 1)[1].rsplit('.', 1)[0].replace('/', '_')}_average_rank_plot.pdf"
 plt.savefig(path, format="pdf", dpi=1000)

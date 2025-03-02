@@ -1,0 +1,44 @@
+{
+    "roc_aucs": {
+        "ADASYN": 0.729894252126654,
+        "SMOTE": 0.7567536802930056,
+        "BorderlineSMOTE": 0.7202649161153116,
+        "SVMSMOTE": 0.7511929288752364,
+        "RandomUnderSampler": 0.7659334829867678,
+        "TSMixup": 0.7688814508506615,
+        "DBA": 0.7731412629962193,
+        "Jittering": 0.7777070238657844,
+        "Scaling": 0.7775477847353496,
+        "MagnitudeWarping": 0.7697440926275994,
+        "TimeWarping": 0.7220423853969754,
+        "No Resampling": 0.7605862240075615
+    },
+    "log_losses": {
+        "ADASYN": 0.4669876314355539,
+        "SMOTE": 0.4420386974908064,
+        "BorderlineSMOTE": 0.4884027396397626,
+        "SVMSMOTE": 0.44518311844895414,
+        "RandomUnderSampler": 0.45177622821757507,
+        "TSMixup": 0.7522550604135951,
+        "DBA": 0.43420455538091735,
+        "Jittering": 0.4265417007238899,
+        "Scaling": 0.4275593926792017,
+        "MagnitudeWarping": 0.44729166791583286,
+        "TimeWarping": 0.4664563757283134,
+        "No Resampling": 0.4527571688544803
+    },
+    "brier_scores": {
+        "ADASYN": 0.1446826114512228,
+        "SMOTE": 0.13940140845069676,
+        "BorderlineSMOTE": 0.14570352538898773,
+        "SVMSMOTE": 0.1401050760768105,
+        "RandomUnderSampler": 0.13726497067705262,
+        "TSMixup": 0.14181896978969374,
+        "DBA": 0.1353227117540215,
+        "Jittering": 0.1347215805196053,
+        "Scaling": 0.134695742637512,
+        "MagnitudeWarping": 0.13499473182134147,
+        "TimeWarping": 0.14571414061561705,
+        "No Resampling": 0.13837881055901377
+    }
+}

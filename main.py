@@ -18,7 +18,7 @@ for data, groups in cases.items():
             "python",
             # ./gen_pipeline_le.py for large errors experiment
             # ./gen_pipeline_lu.py for large uncertainty experiment
-            # ./gen_pipeline_lc.py for large error but low uncertainty (large certainty) experiment
+            # ./gen_pipeline_lc.py for hubris (large error but large certainty) experiment
             "./gen_pipeline_le.py",
             "--data",
             data,
@@ -28,5 +28,9 @@ for data, groups in cases.items():
             h,
             "--models",
             "LGBM",
+            "--quantile",
+            "0.80",
+            "--level",
+            "90",
         ]
         subprocess.run(command, check=True)

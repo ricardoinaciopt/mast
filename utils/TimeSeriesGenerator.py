@@ -123,10 +123,12 @@ class TimeSeriesGenerator:
 
         # size of generation based on dataset, group, and approach (transform or loop)
         gen_size_transform1, gen_size_transform2, gen_size_loop = {
-            ("M4", "Monthly"): (200, 200, 1000000),
-            ("M4", "Quarterly"): (40, 60, 250000),
-            ("M4", "Yearly"): (20, 20, 50000),
+            ("M4", "Monthly"): (200, 200, 200000),
+            # ("M4", "Monthly"): (200, 200, 100000),
+            ("M4", "Quarterly"): (40, 60, 25000),
+            ("M4", "Yearly"): (20, 20, 5000),
         }.get((self.dataset, self.group), (40, 60, 10000))
+        # }.get((self.dataset, self.group), (40, 60, 10000))
         # factor to reduce based on the sampling frequency
         gen_factor = {
             "M": 1,

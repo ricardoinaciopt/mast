@@ -43,7 +43,7 @@ def balance_large_error(df, prefix):
 
 
 # ____________________________________________________
-def main(data, group, horizon, models):
+def main(data, group, horizon, models, quantile, level):
     # data preparation
 
     dataset = PrepareDataset(dataset=data, group=group)
@@ -89,7 +89,7 @@ def main(data, group, horizon, models):
         seasonality=seasonality,
         prediction_intervals=True,
     )
-    fm.forecast(level=80)
+    fm.forecast(level=level)
 
     # MAST: main pipeline for meta-model training and model evaluation
     MAST_dev = MAST(
@@ -116,15 +116,15 @@ def main(data, group, horizon, models):
             "Error: 'SeasonalNaive' is not a valid selection for processing."
         )
 
-    MAST_dev.get_large_errors(model=best_model, metric="smape", quantile=0.80)
+    MAST_dev.get_large_errors(model=best_model, metric="smape", quantile=quantile)
 
     datafile = data + "_" + group + ".csv"
     MAST_dev.extract_features(train_set=dev_set, filename=datafile)
 
     MAST_dev.compute_uncertainty(
-        train_set=dev_set, predictions=MAST_dev.merged_forecasts, level=80
+        train_set=dev_set, predictions=MAST_dev.merged_forecasts, level=level
     )
-    MAST_dev.get_large_uncertainty(model="LGBM", quantile=0.80)
+    MAST_dev.get_large_uncertainty(model="LGBM", quantile=quantile)
     features_errors_uncertainty_dev = MAST_dev.features_errors.copy()
 
     features_errors_uncertainty_dev["large_uncertainty"] = (
@@ -508,7 +508,7 @@ def main(data, group, horizon, models):
         seasonality=seasonality,
         prediction_intervals=True,
     )
-    fm2.forecast(level=80)
+    fm2.forecast(level=level)
 
     # MAST: main pipeline for meta-model training and model evaluation
     mast = MAST(
@@ -530,8 +530,11 @@ def main(data, group, horizon, models):
     )
     print(f"\n{evaluation}\n")
 
-    os.makedirs(f"lgbm_results/le", exist_ok=True)
-    with open(f"lgbm_results/le/q80_{data}_{group}.txt", "w") as f:
+    folder_prefix = "q" + str(int(quantile * 100)) + "_" + str(level)
+    os.makedirs(f"lgbm_results/{folder_prefix}/le", exist_ok=True)
+    with open(
+        f"lgbm_results/{folder_prefix}/le/{folder_prefix}_{data}_{group}.txt", "w"
+    ) as f:
         f.write(str(evaluation))
 
     best_model = mast.select_best()
@@ -540,14 +543,14 @@ def main(data, group, horizon, models):
             "Error: 'SeasonalNaive' is not a valid selection for processing."
         )
 
-    mast.get_large_errors(quantile=0.80, model=best_model, metric="smape")
+    mast.get_large_errors(quantile=quantile, model=best_model, metric="smape")
     datafile = data + "_" + group + ".csv"
     mast.extract_features(train_set=train, filename=datafile)
 
     mast.compute_uncertainty(
-        train_set=dev_set, predictions=mast.merged_forecasts, level=80
+        train_set=dev_set, predictions=mast.merged_forecasts, level=level
     )
-    mast.get_large_uncertainty(model="LGBM", quantile=0.80)
+    mast.get_large_uncertainty(model="LGBM", quantile=quantile)
 
     features_errors_uncertainty = mast.features_errors.copy()
     features_errors_uncertainty["large_uncertainty"] = features_errors_uncertainty[
@@ -695,11 +698,11 @@ def main(data, group, horizon, models):
         },
     }
 
-    os.makedirs(f"results/le", exist_ok=True)
-    with open(f"results/le/q80_{data}_{group}.json", "w") as f:
+    os.makedirs(f"results/{folder_prefix}/le", exist_ok=True)
+    with open(
+        f"results/{folder_prefix}/le/{folder_prefix}_{data}_{group}.json", "w"
+    ) as f:
         json.dump(results, f, indent=4)
-
-    print(f"\nEvaluation results saved to 'results/le/q80_{data}_{group}.json'")
 
 
 if __name__ == "__main__":
@@ -740,6 +743,22 @@ if __name__ == "__main__":
         help="A forecasting model or a list of forecasting models.",
     )
 
+    parser.add_argument(
+        "--quantile",
+        dest="quantile",
+        type=float,
+        default=0.8,
+        help="Specify the quantile to use for large errors.",
+    )
+
+    parser.add_argument(
+        "--level",
+        dest="level",
+        type=int,
+        default=90,
+        help="Specify the level to use for confidence intervals.",
+    )
+
     args = parser.parse_args()
     if args.models and len(args.models) == 1:
         args.models = args.models[0]
@@ -748,4 +767,6 @@ if __name__ == "__main__":
         group=args.group,
         horizon=args.horizon,
         models=args.models,
+        quantile=args.quantile,
+        level=args.level,
     )
