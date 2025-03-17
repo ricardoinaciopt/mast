@@ -89,7 +89,7 @@ overall_ranking.set_index("Method", inplace=True)
 overall_ranking["Color"] = overall_ranking.index.map(get_color)
 
 plt.rcParams.update({"font.size": 13})
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(10, 8))
 bars = plt.bar(
     overall_ranking.index,
     overall_ranking["Average Rank"],
@@ -104,8 +104,9 @@ plt.xticks(rotation=45, ha="right", fontsize=14)
 plt.legend(
     handles=legend_elements,
     title="Method Type",
-    loc="center left",
-    bbox_to_anchor=(1, 0.5),
+    loc="upper center",  # Change legend location to top
+    bbox_to_anchor=(0.5, 1.3),  # Adjust the position to be above the plot
+    ncol=2,  # Arrange legend items in 3 columns
 )
 
 plt.tight_layout()

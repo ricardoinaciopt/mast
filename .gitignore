@@ -10,6 +10,7 @@ analysis/
 visualizations/
 errors_uncertainty/
 figs/
+utils/data/load_data/
 utils/data/codebase/
 utils/data/assets/datasets/m3/
 utils/data/assets/datasets/m4/

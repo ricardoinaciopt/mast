@@ -9,14 +9,19 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "directory",
     type=str,
-    help="Path to the directory containing JSON files starting with 'q80_'.",
+    help="Path to the directory containing JSON files.",
 )
 args = parser.parse_args()
 
 datasets = {}
 for file_name in os.listdir(args.directory):
-    if file_name.startswith("q80_") and file_name.endswith(".json"):
-        key = file_name.split("_", 1)[1].rsplit(".", 1)[0].replace("_", " ")
+    if file_name.endswith(".json"):
+        key = (
+            file_name.split("_", 1)[1]
+            .rsplit(".", 1)[0]
+            .replace("_", " ")
+            .replace("90 ", "")
+        )
         file_path = os.path.join(args.directory, file_name)
         with open(file_path, "r") as file:
             data = json.load(file)
@@ -57,7 +62,6 @@ def generate_latex(datasets):
     df_numeric_formatted["Avg. Rank"] = avg_rank.map("{:.1f}".format)
 
     df_formatted = df_numeric_formatted.copy()
-
     column_order = [
         "M3 Monthly",
         "M3 Quarterly",

@@ -19,7 +19,7 @@ for data, groups in cases.items():
             # ./gen_pipeline_le.py for large errors experiment
             # ./gen_pipeline_lu.py for large uncertainty experiment
             # ./gen_pipeline_lc.py for hubris (large error but large certainty) experiment
-            "./gen_pipeline_le.py",
+            "./gen_pipeline_lu.py",
             "--data",
             data,
             "--group",
@@ -29,7 +29,7 @@ for data, groups in cases.items():
             "--models",
             "LGBM",
             "--quantile",
-            "0.80",
+            "0.85",
             "--level",
             "90",
         ]

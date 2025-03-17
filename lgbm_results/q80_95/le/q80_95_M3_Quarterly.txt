@@ -1,2 +1,0 @@
-LGBM II: 3.70% SMAPE
-SeasonalNaive II: 4.50% SMAPE
