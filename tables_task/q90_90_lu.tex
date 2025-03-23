@@ -1,0 +1,27 @@
+
+\begin{table}
+\centering
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.2}
+\scalebox{0.7}{
+\begin{tabular}{|l|cccccc|c|c|}
+\hline
+Method & M3 Monthly & M3 Quarterly & M3 Yearly & M4 Monthly & M4 Quarterly & M4 Yearly & Avg. Log Loss & Avg. Rank \\
+\hline
+ADASYN & 0.396 & 0.812 & 0.851 & 0.229 & 0.205 & 0.395 & 0.481 & 8.3 \\
+SMOTE & 0.378 & 0.778 & \textbf{0.503} & 0.227 & 0.208 & 0.381 & \underline{0.413} & 6.8 \\
+BorderlineSMOTE & \textbf{0.324} & 1.038 & 0.743 & 0.226 & 0.205 & 0.363 & 0.483 & 6.7 \\
+SVMSMOTE & 0.540 & 0.667 & 0.607 & 0.226 & 0.200 & 0.317 & 0.426 & 5.7 \\
+TSMixup & 0.989 & 0.614 & \underline{0.538} & \textbf{0.204} & \underline{0.193} & \underline{0.306} & 0.474 & \underline{4.2} \\
+DBA & 0.828 & \textbf{0.224} & 1.040 & 0.224 & 0.201 & 0.412 & 0.488 & 6.7 \\
+Jittering & 1.000 & 0.562 & 1.189 & \underline{0.211} & 0.196 & 0.430 & 0.598 & 7.5 \\
+Scaling & 0.861 & 0.586 & 0.768 & 0.214 & 0.211 & 0.427 & 0.511 & 7.7 \\
+MagnitudeWarping & 1.260 & 0.334 & 0.848 & 0.216 & 0.199 & 0.338 & 0.533 & 6.0 \\
+TimeWarping & 0.452 & \underline{0.324} & 1.145 & 0.242 & 0.226 & 0.394 & 0.464 & 8.2 \\
+\hline
+RandomUnderSampler & 0.870 & 0.479 & 2.136 & 0.219 & 0.207 & 0.329 & 0.707 & 7.5 \\
+No Resampling & \underline{0.368} & 0.407 & 0.794 & 0.214 & \textbf{0.192} & \textbf{0.293} & \textbf{0.378} & \textbf{2.8} \\
+\hline
+\end{tabular}
+}
+\end{table}

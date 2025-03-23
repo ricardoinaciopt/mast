@@ -8,6 +8,8 @@ To use the classes and scripts provided in this repository, follow the instructi
 
 To initiate experiments and evaluate different models and resampling techniques, use `main.py`. Specify the scripts and resamplers to use within `main.py` before execution.
 
+For a faster execution, `main_parallel.py` is available, in which severall settings can be specified for parallel processing across available CPUs.
+
 ### Running Experiments
 
 Experiments are divided into three groups: Monthly, Quarterly, and Yearly. Each group has a different number of periods for the horizon. The following commands can be used to run each type of experiment:
@@ -34,10 +36,10 @@ Alternativly, one can also specify the correct experiment in `main.py`, by updat
 ```python
 command = [
     "python",
-    # ./gen_pipeline_le.py for large errors experiment
-    # ./gen_pipeline_lu.py for large uncertainty experiment
-    # ./gen_pipeline_lc.py for large error but low uncertainty (large certainty) experiment
-    "./gen_pipeline_le.py",  # Change this to the appropriate script
+    # ./errors_uid_pipeline.py for large errors experiment
+    # ./uncertainty_uid_pipeline.py for uncertainty experiment
+    # ./hubris_uid_pipeline.py for hubris (large error but large certainty) experiment
+    "./errors_uid_pipeline.py",  # Change this to the appropriate script
     "--data",
     data,
     "--group",

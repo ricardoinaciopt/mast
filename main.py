@@ -16,10 +16,10 @@ for data, groups in cases.items():
 
         command = [
             "python",
-            # ./gen_pipeline_le.py for large errors experiment
-            # ./gen_pipeline_lu.py for large uncertainty experiment
-            # ./gen_pipeline_lc.py for hubris (large error but large certainty) experiment
-            "./gen_pipeline_lu.py",
+            # ./errors_uid_pipeline.py for large errors experiment
+            # ./uncertainty_uid_pipeline.py for uncertainty experiment
+            # ./hubris_uid_pipeline.py for hubris (large error but large certainty) experiment
+            "./errors_uid_pipeline.py",
             "--data",
             data,
             "--group",
@@ -29,7 +29,7 @@ for data, groups in cases.items():
             "--models",
             "LGBM",
             "--quantile",
-            "0.85",
+            "0.80",
             "--level",
             "90",
         ]

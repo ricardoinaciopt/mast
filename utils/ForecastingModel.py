@@ -68,6 +68,12 @@ class ForecastingModel:
         self.frequency = frequency
         self.seasonality = seasonality
         self.horizon = horizon
+        self.difference = {
+            "M": 12,
+            "MS": 12,
+            "Q": 4,
+            "QS": 4,
+        }
         self.prediction_intervals = prediction_intervals
         self.regressor = None
         self.prediction = None
@@ -141,20 +147,32 @@ class ForecastingModel:
             1st difference for yearly data.
             Account for frequencies at season start and end.
             """
-            difference = {
-                "M": 12,
-                "MS": 12,
-                "Q": 4,
-                "QS": 4,
-            }.get(self.frequency, 1)
+            difference = self.difference.get(self.frequency, 1)
             return {
                 "lags": [i for i in range(1, self.horizon)],
                 "target_transforms": [Differences([difference])],
             }
 
+        # remove those too short for the differencing transformation
+        difference = self.difference.get(self.frequency, 1)
+        min_length = difference * 2 + difference
+        valid_series = self.train_set.groupby("unique_id").filter(
+            lambda x: len(x) > min_length
+        )
+
+        initial_series_count = self.train_set["unique_id"].nunique()
+        final_series_count = valid_series["unique_id"].nunique()
+        if initial_series_count > final_series_count:
+            print(f"Some series were removed due to being too short for differencing.")
+            print(f"Initial number of unique series: {initial_series_count}")
+            print(f"Final number of unique series: {final_series_count}")
+            print(
+                f"Number of series removed: {initial_series_count - final_series_count}"
+            )
+
         # AutoMLForecast fit arguments
         fit_kwargs = {
-            "df": self.train_set,
+            "df": valid_series,
             "h": self.horizon,
             "num_samples": 10,
             "n_windows": 2,
