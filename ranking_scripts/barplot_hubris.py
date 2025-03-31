@@ -47,8 +47,12 @@ def generate_plot(average_ranks, output_file):
             plt.Line2D([0], [0], color="orange", lw=4, label="Generating Time Series"),
             plt.Line2D([0], [0], color="gray", lw=4, label="No Resampling"),
         ],
-        title="Method",
-        fontsize=14,
+        title="Resampling Method",
+        title_fontsize=12,
+        fontsize=13,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.2),
+        ncol=4,
     )
 
     plt.tight_layout()
@@ -60,12 +64,14 @@ def generate_plot_from_json(json_path):
     with open(json_path, "r") as f:
         data = json.load(f)
 
-    if not isinstance(data, dict):
-        print("Error: Invalid JSON format. Expected a dictionary with method ranks.")
+    if "lc_60_40" not in data or not isinstance(data["lc_60_40"], dict):
+        print("Error: JSON file must contain a 'lc_60_40' key with a dictionary.")
         return
 
+    data = data["lc_60_40"]
+
     filename = os.path.basename(json_path)
-    task_name = filename.split(".")[0][-2:]
+    task_name = "lc"
 
     output_folder = os.path.join("figs_ranks", task_name)
     os.makedirs(output_folder, exist_ok=True)

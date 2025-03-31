@@ -47,8 +47,12 @@ def generate_plot(average_ranks, output_file):
             plt.Line2D([0], [0], color="orange", lw=4, label="Generating Time Series"),
             plt.Line2D([0], [0], color="gray", lw=4, label="No Resampling"),
         ],
-        title="Method",
-        fontsize=14,
+        title="Resampling Method",
+        title_fontsize=12,
+        fontsize=13,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.2),
+        ncol=4,
     )
 
     plt.tight_layout()

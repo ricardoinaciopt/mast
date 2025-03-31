@@ -36,39 +36,41 @@ def plot_method_vs_baseline(wins_data, baseline_method, output_path):
         print(f"Baseline method '{baseline_method}' not found in wins data.")
         return
 
-    total_wins = sum(wins_data.values())
-    if total_wins == 0:
-        print("No wins to plot.")
-        return
-
+    baseline_wins = wins_data[baseline_method]
     methods = [m for m in wins_data if m != baseline_method]
-
-    method_percentages = [wins_data[m] / total_wins * 100 for m in methods]
-    baseline_percentage = wins_data[baseline_method] / total_wins * 100
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    for i, method in enumerate(methods):
-        method_pct = method_percentages[i]
-        lower = min(method_pct, baseline_percentage)
-        upper = max(method_pct, baseline_percentage) - lower
-        colors = [
-            "green" if method_pct < baseline_percentage else "red",
-            "red" if method_pct < baseline_percentage else "green",
-        ]
-        ax.bar(method, lower, color=colors[0], edgecolor="black")
-        ax.bar(method, upper, bottom=lower, color=colors[1], edgecolor="black")
+    for method in methods:
+        method_wins = wins_data[method]
+        pair_total = method_wins + baseline_wins
+        if pair_total == 0:
+            method_pct = 0
+            baseline_pct = 0
+        else:
+            method_pct = method_wins / pair_total * 100
+            baseline_pct = baseline_wins / pair_total * 100
 
-    ax.set_ylabel("Percentage of Total Wins")
-    ax.set_yticks(ax.get_yticks())
-    ax.set_yticklabels([f"{int(tick)}%" for tick in ax.get_yticks()])
+        ax.bar(method, method_pct, color="green", edgecolor="black")
+        ax.bar(method, baseline_pct, bottom=method_pct, color="red", edgecolor="black")
+
+    ax.set_ylabel("Win / Loss Percentage Ratio")
+    ax.set_ylim(0, 100)
+    ax.set_yticks(range(0, 110, 10))
+    ax.set_yticklabels([f"{t}%" for t in range(0, 110, 10)])
+
+    ax.axhline(50, color="black", linestyle="--", linewidth=1)
+
     legend_handles = [
-        plt.Rectangle((0, 0), 1, 1, color="green", label="Resampling Methods"),
-        plt.Rectangle((0, 0), 1, 1, color="red", label="No Resampling"),
+        plt.Rectangle((0, 0), 1, 1, color="green", label="Resampling Method"),
+        plt.Rectangle((0, 0), 1, 1, color="red", label="Baseline (No Resampling)"),
     ]
-    ax.legend(handles=legend_handles)
+    ax.legend(
+        handles=legend_handles, loc="upper center", bbox_to_anchor=(0.5, 1.15), ncol=2
+    )
+
     plt.xticks(rotation=45, ha="right")
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0, 1, 1])
     plt.savefig(output_path, format="pdf")
     plt.close()
 
