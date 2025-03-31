@@ -1,0 +1,14 @@
+{
+  "TimeWarping": 32894,
+  "TSMixup": 30053,
+  "Scaling": 29019,
+  "MagnitudeWarping": 29265,
+  "No Resampling": 24692,
+  "ADASYN": 28531,
+  "SMOTE": 28537,
+  "SVMSMOTE": 20665,
+  "DBA": 34258,
+  "BorderlineSMOTE": 22664,
+  "Jittering": 25871,
+  "RandomUnderSampler": 22373
+}

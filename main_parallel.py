@@ -3,12 +3,12 @@ import concurrent.futures
 import os
 
 cases = {
-    # "M3": ["Monthly", "Quarterly", "Yearly"],
+    "M3": ["Monthly", "Quarterly", "Yearly"],
     "M4": ["Monthly", "Quarterly", "Yearly"],
 }
 
 MODELS = "LGBM"
-QUANTILE = "0.95"
+QUANTILE = "0.90"
 LEVEL = "90"
 
 
@@ -36,8 +36,8 @@ def run_command(script, data, group, h):
 
 
 scripts = [
-    # "./errors_uid_pipeline.py",
-    "./uncertainty_uid_pipeline.py",
+    "./errors_uid_pipeline.py",
+    # "./uncertainty_uid_pipeline.py",
     # "./hubris_uid_pipeline.py",
 ]
 

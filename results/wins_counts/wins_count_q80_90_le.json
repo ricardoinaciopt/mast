@@ -1,0 +1,14 @@
+{
+  "ADASYN": 12903,
+  "SVMSMOTE": 11174,
+  "DBA": 13464,
+  "No Resampling": 12605,
+  "Scaling": 17876,
+  "RandomUnderSampler": 14234,
+  "Jittering": 12901,
+  "MagnitudeWarping": 13304,
+  "SMOTE": 9525,
+  "TimeWarping": 18104,
+  "TSMixup": 10956,
+  "BorderlineSMOTE": 13358
+}

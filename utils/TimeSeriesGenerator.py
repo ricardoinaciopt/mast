@@ -124,12 +124,13 @@ class TimeSeriesGenerator:
         # size of generation based on dataset, group, and approach (transform or loop)
         gen_size_transform1, gen_size_transform2, gen_size_loop = {
             ("M4", "Monthly"): (200, 200, 200000),
-            # ("M4", "Monthly"): (200, 200, 100000),
             ("M4", "Quarterly"): (40, 60, 25000),
             ("M4", "Yearly"): (20, 20, 5000),
-        }.get((self.dataset, self.group), (40, 60, 2000))
-        # }.get((self.dataset, self.group), (40, 60, 1000))
-        # }.get((self.dataset, self.group), (40, 60, 10000))
+            # faster for hubris
+            # ("M4", "Monthly"): (100, 100, 100000),
+            # ("M4", "Quarterly"): (40, 60, 20000),
+            # ("M4", "Yearly"): (20, 20, 5000),
+        }.get((self.dataset, self.group), (40, 60, 10000))
         # factor to reduce based on the sampling frequency
         gen_factor = {
             "M": 1,
@@ -163,7 +164,7 @@ class TimeSeriesGenerator:
         else:
             gen_diff = round(gen_diff / (gen_size_loop / gen_factor))
             if self.target == "le_lc":
-                gen_diff *= 2
+                gen_diff *= 5
             print("Generating ", gen_diff, " series with: ", method_name)
 
             for i in range(gen_diff):

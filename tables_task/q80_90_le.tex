@@ -1,27 +1,28 @@
 
-\begin{table}
-\centering
-\setlength{\tabcolsep}{5pt}
-\renewcommand{\arraystretch}{1.2}
-\scalebox{0.7}{
-\begin{tabular}{|l|cccccc|c|c|}
-\hline
-Method & M3 Monthly & M3 Quarterly & M3 Yearly & M4 Monthly & M4 Quarterly & M4 Yearly & Avg. Log Loss & Avg. Rank \\
-\hline
-ADASYN & 0.641 & 0.638 & 0.476 & 0.349 & 0.370 & 0.467 & 0.490 & 9.0 \\
-SMOTE & 0.606 & \underline{0.565} & 0.528 & 0.342 & 0.399 & 0.442 & 0.480 & 8.2 \\
-BorderlineSMOTE & 0.423 & 0.628 & 2.075 & 0.354 & 0.393 & 0.488 & 0.727 & 9.0 \\
-SVMSMOTE & 0.488 & \textbf{0.555} & 0.461 & 0.341 & 0.364 & 0.445 & \underline{0.442} & 5.5 \\
-TSMixup & 0.468 & 0.654 & 0.515 & \textbf{0.321} & \underline{0.359} & 0.734 & 0.508 & 6.2 \\
-DBA & \underline{0.371} & 1.926 & 0.455 & 0.331 & \underline{0.359} & 0.433 & 0.646 & \underline{4.3} \\
-Jittering & 0.392 & 0.629 & 0.461 & 0.330 & 0.361 & \textbf{0.430} & \textbf{0.434} & \textbf{3.7} \\
-Scaling & 0.385 & 0.860 & \underline{0.451} & 0.332 & 0.365 & 0.443 & 0.473 & 5.5 \\
-MagnitudeWarping & 0.604 & 1.582 & 0.455 & \underline{0.323} & \textbf{0.347} & \textbf{0.430} & 0.624 & 5.0 \\
-TimeWarping & \textbf{0.370} & 0.779 & \textbf{0.450} & 0.332 & 0.364 & 0.466 & 0.460 & 5.2 \\
-\hline
-RandomUnderSampler & 0.566 & 0.648 & 0.521 & 0.333 & 0.371 & 0.452 & 0.482 & 7.8 \\
-No Resampling & 0.591 & 0.723 & 0.523 & 0.344 & 0.365 & 0.453 & 0.500 & 8.7 \\
-\hline
-\end{tabular}
-}
-\end{table}
+    \begin{table}
+    \centering
+    \setlength{\tabcolsep}{5pt}
+    \renewcommand{\arraystretch}{1.2}
+    \scalebox{0.75}{
+    \begin{tabular}{|l|cccccc|}
+    \hline
+    Method & M3 Monthly & M3 Quarterly & M3 Yearly & M4 Monthly & M4 Quarterly & M4 Yearly \\
+    \hline
+    ADASYN & 0.641 & 0.638 & 0.476 & 0.349 & 0.370 & 0.467 \\
+    SMOTE & 0.606 & \underline{0.565} & 0.528 & 0.342 & 0.399 & 0.442 \\
+    BorderlineSMOTE & 0.423 & 0.628 & 2.075 & 0.354 & 0.393 & 0.488 \\
+    SVMSMOTE & 0.488 & \textbf{0.555} & 0.461 & 0.341 & 0.364 & 0.445 \\
+    TSMixup & 0.468 & 0.654 & 0.515 & \textbf{0.321} & \underline{0.359} & 0.734 \\
+    DBA & \underline{0.371} & 1.926 & 0.455 & 0.331 & \underline{0.359} & 0.433 \\
+    Jittering & 0.392 & 0.629 & 0.461 & 0.330 & 0.361 & \textbf{0.430} \\
+    Scaling & 0.385 & 0.860 & \underline{0.451} & 0.332 & 0.365 & 0.443 \\
+    MagnitudeWarping & 0.604 & 1.582 & 0.455 & \underline{0.323} & \textbf{0.347} & \textbf{0.430} \\
+    TimeWarping & \textbf{0.370} & 0.779 & \textbf{0.450} & 0.332 & 0.364 & 0.466 \\
+    \hline
+    RandomUnderSampler & 0.566 & 0.648 & 0.521 & 0.333 & 0.371 & 0.452 \\
+    No Resampling & 0.591 & 0.723 & 0.523 & 0.344 & 0.365 & 0.453 \\
+    \hline
+    \end{tabular}
+    }
+    \end{table}
+    

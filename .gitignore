@@ -9,12 +9,12 @@ generated*
 analysis/
 visualizations/
 errors_uncertainty/
-figs/
 utils/data/load_data/
 utils/data/codebase/
 utils/data/assets/datasets/m3/
 utils/data/assets/datasets/m4/
 utils/data/assets/datasets/tourism/
+*log_losses*
 *_old.py*
 *copy.py*
 *_data.py*

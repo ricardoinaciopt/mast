@@ -116,7 +116,7 @@ def main(data, group, horizon, models, quantile, level):
             "Error: 'SeasonalNaive' is not a valid selection for processing."
         )
 
-    MAST_dev.get_large_errors(model=best_model, metric="smape", quantile=0.70)
+    MAST_dev.get_large_errors(model=best_model, metric="smape", quantile=0.50)
 
     datafile = data + "_" + group + ".csv"
     MAST_dev.extract_features(train_set=dev_set, filename=datafile)
@@ -126,8 +126,8 @@ def main(data, group, horizon, models, quantile, level):
         predictions=MAST_dev.merged_forecasts,
         level=level,
     )
-    MAST_dev.get_large_uncertainty(model="LGBM", quantile=0.70)
-    MAST_dev.get_large_certainty(model="LGBM", quantile=0.30)
+    MAST_dev.get_large_uncertainty(model="LGBM", quantile=0.50)
+    MAST_dev.get_large_certainty(model="LGBM", quantile=0.50)
 
     features_errors_uncertainty_dev = MAST_dev.features_errors.copy()
 
@@ -582,7 +582,7 @@ def main(data, group, horizon, models, quantile, level):
             "Error: 'SeasonalNaive' is not a valid selection for processing."
         )
 
-    mast.get_large_errors(quantile=0.70, model=best_model, metric="smape")
+    mast.get_large_errors(quantile=0.50, model=best_model, metric="smape")
     datafile = data + "_" + group + ".csv"
     mast.extract_features(train_set=train, filename=datafile)
 
@@ -591,8 +591,8 @@ def main(data, group, horizon, models, quantile, level):
         predictions=mast.merged_forecasts,
         level=level,
     )
-    mast.get_large_uncertainty(model="LGBM", quantile=0.70)
-    mast.get_large_certainty(model="LGBM", quantile=0.30)
+    mast.get_large_uncertainty(model="LGBM", quantile=0.50)
+    mast.get_large_certainty(model="LGBM", quantile=0.50)
 
     features_errors_uncertainty = mast.features_errors.copy()
 

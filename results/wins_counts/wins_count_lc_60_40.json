@@ -1,0 +1,16 @@
+{
+  "lc_60_40": {
+    "TimeWarping": 19001,
+    "TSMixup": 16161,
+    "BorderlineSMOTE": 14099,
+    "DBA": 20603,
+    "Jittering": 16191,
+    "Scaling": 16145,
+    "ADASYN": 9254,
+    "SMOTE": 15770,
+    "MagnitudeWarping": 18565,
+    "SVMSMOTE": 12798,
+    "RandomUnderSampler": 17264,
+    "No Resampling": 11554
+  }
+}
